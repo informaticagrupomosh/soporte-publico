@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locales — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Locales</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nuevo">Agregar local</button>
+    </div>
+    <div class="bg-white border rounded table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nombre</th>
+            <th class="num">Usuarios</th>
+            <th class="num">Incidencias</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="4" class="text-center text-muted py-4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modal-local" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="modal-titulo">Agregar local</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert d-none" role="alert"></div>
+          <form id="form-local">
+            <input type="hidden" id="l-id">
+            <div class="mb-3">
+              <label class="form-label" for="l-nombre">Nombre</label>
+              <input type="text" class="form-control" id="l-nombre" placeholder="Nombre" required>
+              <div class="form-text">Los usuarios se asignan a uno o varios locales, y eso decide qué incidencias ven.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let locales = [];
+    const tbody = document.getElementById('rows');
+    const modal = new bootstrap.Modal(document.getElementById('modal-local'));
+
+    async function init() {
+      await initPagina('Locales');
+      document.getElementById('btn-nuevo').addEventListener('click', abrirNuevo);
+      cargar();
+    }
+
+    async function cargar() {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        locales = await fetchJSON('/api/locales');
+        render();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    function render() {
+      if (!locales.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="text-center text-muted py-4">Sin locales. Agrega uno arriba.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = locales.map((l) => `<tr>
+        <td class="ps-3 fw-medium">${esc(l.nombre)}</td>
+        ${celdaNumero(l.usuarios)}
+        ${celdaNumero(l.tickets)}
+        <td class="text-end pe-3 text-nowrap acciones-fila">
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${l.id}">Editar</button>
+          <button class="btn btn-sm btn-link text-danger p-0" data-eliminar="${l.id}">Eliminar</button>
+        </td>
+      </tr>`).join('');
+
+      tbody.querySelectorAll('[data-editar]').forEach((b) =>
+        b.addEventListener('click', () => abrirEdicion(Number(b.dataset.editar))));
+      tbody.querySelectorAll('[data-eliminar]').forEach((b) =>
+        b.addEventListener('click', () => eliminar(Number(b.dataset.eliminar))));
+    }
+
+    function abrirNuevo() {
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-local').reset();
+      document.getElementById('l-id').value = '';
+      document.getElementById('modal-titulo').textContent = 'Agregar local';
+      document.getElementById('btn-guardar').textContent = 'Guardar';
+      modal.show();
+    }
+
+    function abrirEdicion(id) {
+      const l = locales.find((x) => x.id === id);
+      if (!l) return;
+      ocultarAlerta('modal-alert');
+      document.getElementById('l-id').value = l.id;
+      document.getElementById('l-nombre').value = l.nombre;
+      document.getElementById('modal-titulo').textContent = 'Editar local';
+      document.getElementById('btn-guardar').textContent = 'Guardar cambios';
+      modal.show();
+    }
+
+    async function guardar() {
+      const btn = document.getElementById('btn-guardar');
+      const id = document.getElementById('l-id').value;
+      ocultarAlerta('modal-alert');
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON(id ? `/api/locales/${id}` : '/api/locales', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre: document.getElementById('l-nombre').value })
+        });
+        modal.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('modal-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    async function eliminar(id) {
+      const l = locales.find((x) => x.id === id);
+      if (!l) return;
+      if (!await confirmar(`¿Eliminar el local «${l.nombre}»?`, { titulo: 'Eliminar local' })) return;
+      try {
+        await fetchJSON(`/api/locales/${id}`, { method: 'DELETE' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    document.getElementById('btn-guardar').addEventListener('click', guardar);
+    init();
+  </script>
+</body>
+</html>

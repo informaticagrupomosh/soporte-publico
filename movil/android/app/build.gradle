@@ -1,0 +1,96 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) }
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0.0"
+
+// Firma de la versión publicada. Sin android/key.properties se compila con la
+// firma de depuración, de forma que `flutter build apk` funcione recién clonado.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader("UTF-8") { reader -> keystoreProperties.load(reader) }
+}
+
+android {
+    namespace "com.ejemplo.soporte"
+    // Contra qué API se compila. Lo mandan las librerías: en cuanto una de las
+    // de AndroidX pide 36, hay que llegar ahí o la compilación se para. Subirlo
+    // no cambia cómo se comporta la app —eso es `targetSdk`— ni en qué móviles
+    // se instala, que es `minSdk`.
+    compileSdk 36
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        // Necesario para las fechas de java.time en Android antiguos, que usa
+        // flutter_local_notifications al programar avisos.
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId "com.ejemplo.soporte"
+        // 23 es lo que pide flutter_secure_storage; cubre Android 6 en adelante.
+        minSdk 23
+        targetSdk 35
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+
+        // El dominio desde el que se abren los enlaces de los correos: el de la
+        // aplicación. Para una instalación de pruebas se pasa otro con
+        // -Pdominio=... al compilar.
+        //
+        // Se añade con «+=», nunca con «=»: el plugin de Flutter deja aquí su
+        // propio `applicationName`, y asignar el mapa entero se lo lleva por
+        // delante. El manifiesto se queda entonces con un `${applicationName}`
+        // que nadie sustituye y la compilación se para al fusionarlo.
+        manifestPlaceholders += [
+            dominio: (project.findProperty('dominio') ?: 'soporte.tu-dominio.com')
+        ]
+    }
+
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            release {
+                keyAlias keystoreProperties["keyAlias"]
+                keyPassword keystoreProperties["keyPassword"]
+                storeFile file(keystoreProperties["storeFile"])
+                storePassword keystoreProperties["storePassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig keystorePropertiesFile.exists()
+                ? signingConfigs.release
+                : signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.2"
+}

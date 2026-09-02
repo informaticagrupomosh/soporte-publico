@@ -1,0 +1,22 @@
+{
+  "name": "soporte-incidencias",
+  "version": "1.0.0",
+  "description": "Gestión de incidencias por local, con chat, informes y app móvil",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "correo": "node tools/probar-correo.js",
+    "notificaciones": "node tools/probar-notificaciones.js",
+    "entra": "node tools/probar-entra.js",
+    "quien-recibe": "node tools/quien-recibe.js",
+    "demo": "node tools/demo.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "express": "^4.21.0"
+  }
+}

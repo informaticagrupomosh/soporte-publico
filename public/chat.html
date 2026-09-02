@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container-fluid px-3 px-xl-4 py-3">
+    <div id="alert-area"></div>
+
+    <div class="chat" id="chat">
+      <!-- Los canales: uno por local, como la lista de conversaciones de
+           cualquier chat. En un móvil ocupa la pantalla entera hasta que se
+           entra en uno. -->
+      <aside class="chat-canales" id="chat-canales">
+        <div class="chat-canales-cabecera">
+          <span class="chart-title mb-0">Canales</span>
+          <span class="chat-conexion" id="chat-conexion" title="Estado de la conexión"></span>
+        </div>
+        <div id="lista-canales" class="chat-lista">
+          <p class="text-muted small p-3 mb-0">Cargando…</p>
+        </div>
+      </aside>
+
+      <section class="chat-conversacion" id="chat-conversacion" hidden>
+        <header class="chat-cabecera">
+          <button type="button" class="btn btn-sm btn-light chat-volver" id="chat-volver"
+                  aria-label="Volver a los canales">←</button>
+          <div class="chat-cabecera-texto">
+            <div class="chat-cabecera-nombre" id="chat-nombre"></div>
+            <div class="chat-cabecera-gente text-muted" id="chat-gente"></div>
+          </div>
+        </header>
+
+        <div class="chat-mensajes" id="chat-mensajes"></div>
+
+        <div class="chat-escribiendo text-muted" id="chat-escribiendo"></div>
+
+        <button type="button" class="chat-nuevos d-none" id="chat-nuevos">
+          Hay mensajes nuevos ↓
+        </button>
+
+        <form class="chat-redactar" id="chat-redactar">
+          <div id="chat-alert" class="alert d-none m-0 mb-2" role="alert"></div>
+
+          <!-- Lo que se va a mandar con el mensaje, ya subido al servidor. -->
+          <div class="chat-adjuntos-pendientes d-none" id="chat-pendientes"></div>
+          <div class="progreso d-none" id="chat-progreso">
+            <div class="barra-progreso"><span></span></div>
+            <div class="progreso-texto text-muted small"></div>
+          </div>
+
+          <div class="chat-grabando d-none" id="chat-grabando">
+            <span class="chat-punto-grabacion"></span>
+            <span id="chat-grabando-tiempo">0:00</span>
+            <span class="text-muted small">Grabando una nota de voz…</span>
+            <button type="button" class="btn btn-sm btn-light ms-auto" id="chat-cancelar-audio">Cancelar</button>
+          </div>
+
+          <div class="chat-fila">
+            <input type="file" id="chat-archivo" class="d-none"
+                   accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+            <button type="button" class="btn btn-light chat-icono" id="chat-adjuntar"
+                    title="Adjuntar una foto, un vídeo o un documento" aria-label="Adjuntar">📎</button>
+            <textarea class="form-control chat-texto" id="chat-texto" rows="1"
+                      placeholder="Escribe un mensaje" aria-label="Mensaje"></textarea>
+            <button type="button" class="btn btn-light chat-icono" id="chat-microfono"
+                    title="Grabar una nota de voz" aria-label="Grabar una nota de voz">🎤</button>
+            <button type="submit" class="btn btn-dark chat-icono" id="chat-enviar"
+                    title="Enviar" aria-label="Enviar">➤</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="chat-vacio" id="chat-vacio" hidden>
+        <p class="text-muted mb-0">Elige un canal para empezar a hablar.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- La foto a tamaño completo, igual que en la ficha de una incidencia. -->
+  <div class="modal fade" id="modal-imagen" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="imagen-titulo"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="imagen-grande" class="imagen-grande" alt="">
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <a class="btn btn-light" id="imagen-descargar" download>Descargar</a>
+          <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script src="/assets/chat.js"></script>
+</body>
+</html>

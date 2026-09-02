@@ -1,0 +1,73 @@
+name: incidencias
+description: App móvil de gestión de incidencias por local.
+publish_to: none
+version: 1.1.0+2
+
+environment:
+  # Lo que de verdad hace falta: `record` 6 pide Flutter 3.24 y Dart 3.5. Se
+  # declara aquí para que quien tenga uno anterior lo sepa al hacer «pub get»
+  # y no en mitad de una compilación.
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Los meses, los días y los botones de los diálogos del sistema, en
+  # castellano. Sin esto el calendario de los informes sale en inglés.
+  flutter_localizations:
+    sdk: flutter
+
+  # Notificaciones push. `firebase_messaging` recibe el aviso —también con la
+  # app cerrada— y `flutter_local_notifications` lo pinta cuando la app está
+  # abierta, que es el único caso en el que Android no lo pinta solo.
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+  flutter_local_notifications: ^17.2.3
+
+  http: ^1.2.2
+  # El token de sesión no puede quedarse en claro: va al almacén cifrado del
+  # sistema (Keystore en Android, Keychain en iOS).
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.2
+  intl: any
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
+  # Abrir un documento descargado con la app del sistema.
+  # Los enlaces de los correos, que abren la app en la incidencia, y la vuelta
+  # de la entrada con Office 365.
+  app_links: ^6.3.2
+  # Abrir el navegador del teléfono para entrar con Office 365: la sesión de
+  # Microsoft y el segundo factor están allí, no dentro de la app.
+  url_launcher: ^6.3.0
+  # El resumen del verificador de esa entrada.
+  crypto: ^3.0.5
+  open_filex: ^4.5.0
+  path_provider: ^2.1.4
+  video_player: ^2.9.1
+
+  # El chat guarda su propia copia en el teléfono: los mensajes que ya se
+  # tienen no se vuelven a pedir, y al abrir la app solo viaja por la red lo
+  # que falta desde el último guardado.
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  # Las notas de voz: grabarlas y escucharlas.
+  #
+  # De la 6 en adelante a la fuerza: `record` 5.2.1 admite a la vez
+  # `record_linux` 0.7 y una interfaz de plataforma 1.6 que esa versión no
+  # implementa, y con esa combinación no compila ni para Android — el
+  # compilador analiza los paquetes de todas las plataformas. La 6.2.1 tiene
+  # el árbol coherente y la misma API.
+  record: ^6.2.1
+  audioplayers: ^6.1.0
+  # Guardar una foto o un vídeo del chat en el carrete, y solo cuando la
+  # persona lo pide: lo que se descarga para verlo vive en la carpeta temporal.
+  gal: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

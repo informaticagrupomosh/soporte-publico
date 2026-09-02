@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Usuarios — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Usuarios</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nuevo">Agregar usuario</button>
+    </div>
+    <div class="bg-white border rounded table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nombre</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Departamento</th>
+            <th>Locales</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modal-usuario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="modal-titulo">Agregar usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert d-none" role="alert"></div>
+          <form id="form-usuario">
+            <input type="hidden" id="u-id">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="u-nombre">Nombre</label>
+                <input type="text" class="form-control" id="u-nombre" placeholder="Nombre" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="u-email">Correo</label>
+                <input type="email" class="form-control" id="u-email"
+                       placeholder="Correo" autocomplete="off" required>
+                <div class="form-text">Con este correo entra en la aplicación, y a él le llegan los avisos.</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="u-rol">Rol</label>
+                <select class="form-select" id="u-rol">
+                  <option value="usuario">Usuario</option>
+                  <option value="empleado">Empleado</option>
+                  <option value="tecnico">Técnico</option>
+                  <option value="gestor">Gestor</option>
+                  <option value="admin">Administrador</option>
+                </select>
+                <div class="form-text" id="u-rol-ayuda"></div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="u-grupo">Departamento</label>
+                <select class="form-select" id="u-grupo"></select>
+                <div class="form-text" id="u-grupo-ayuda"></div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 mb-3">
+                <label class="form-label">Locales</label>
+                <div id="u-locales" class="border rounded p-2"></div>
+                <div class="form-text" id="u-locales-ayuda"></div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="u-password">Contraseña</label>
+                <input type="password" class="form-control" id="u-password" autocomplete="new-password">
+                <div class="form-text" id="u-password-ayuda">Mínimo 8 caracteres.</div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let usuarios = [];
+    let grupos = [];
+    let locales = [];
+    let sesion = null;
+    const tbody = document.getElementById('rows');
+    const modal = new bootstrap.Modal(document.getElementById('modal-usuario'));
+
+    const AYUDA_ROL = {
+      usuario: 'Solo ve las incidencias que ha abierto él, en sus locales. Es el rol de las cuentas nuevas.',
+      empleado: 'Abre incidencias en sus locales y ve todas las de esos locales, no solo las suyas.',
+      tecnico: 'Atiende las incidencias de su departamento, y también puede abrirlas. Sin locales marcados, atiende todos.',
+      gestor: 'Supervisa: ve todas las incidencias, los informes de todos los técnicos y lleva las tareas programadas. No gestiona cuentas ni catálogos.',
+      admin: 'Gestiona usuarios, departamentos, locales y tareas programadas, y ve todas las incidencias.'
+    };
+    const AYUDA_LOCALES = {
+      usuario: 'Los locales donde puede abrir incidencias. Sin ninguno marcado, el local por defecto de la instalación.',
+      empleado: 'Los locales para los que puede abrir incidencias, y los únicos cuyas incidencias ve.',
+      tecnico: 'Los locales que atiende. Sin ninguno marcado, atiende todos los de su departamento.',
+      gestor: 'Un gestor ve todos los locales; esta selección no le limita.',
+      admin: 'Un administrador ve todos los locales; esta selección no le limita.'
+    };
+
+    async function init() {
+      sesion = await initPagina('Usuarios');
+      document.getElementById('btn-nuevo').addEventListener('click', abrirNuevo);
+      document.getElementById('u-rol').addEventListener('change', alCambiarRol);
+      cargar();
+    }
+
+    async function cargar() {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        [usuarios, grupos, locales] = await Promise.all([
+          fetchJSON('/api/usuarios'),
+          fetchJSON('/api/grupos'),
+          fetchJSON('/api/locales')
+        ]);
+        render();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    function textoLocales(u) {
+      if (u.rol === 'admin' || u.rol === 'gestor') return 'Todos';
+      if (!u.locales.length) {
+        return u.rol === 'tecnico' ? 'Todos los de su departamento' : 'Sin locales';
+      }
+      return u.locales.map((l) => esc(l.nombre)).join(', ');
+    }
+
+    function render() {
+      tbody.innerHTML = usuarios.map((u) => `<tr>
+        <td class="ps-3 fw-medium">${esc(u.nombre)}${
+          sesion && u.id === sesion.id ? ' <span class="badge bg-dark">Tú</span>' : ''
+        }</td>
+        <td>
+          <span class="mono-chip">${esc(u.usuario)}</span>
+          ${u.entra ? ' <span class="badge text-bg-light border">Office 365</span>' : ''}
+          ${u.bloqueada ? '<div class="text-danger small">Acceso bloqueado por intentos fallidos</div>' : ''}
+        </td>
+        <td>${esc(ROLES[u.rol] || u.rol)}</td>
+        <td class="text-muted small">${
+          u.grupo_nombre ? esc(u.grupo_nombre) : '<span class="cell-zero">—</span>'
+        }</td>
+        <td class="text-muted small">${textoLocales(u)}</td>
+        <td class="text-end pe-3 text-nowrap acciones-fila">
+          ${u.bloqueada
+            ? `<button class="btn btn-sm btn-link text-dark p-0 me-3" data-desbloquear="${u.id}">Reactivar acceso</button>`
+            : ''}
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${u.id}">Editar</button>
+          ${sesion && u.id === sesion.id
+            ? ''
+            : `<button class="btn btn-sm btn-link text-danger p-0" data-eliminar="${u.id}">Eliminar</button>`}
+        </td>
+      </tr>`).join('');
+
+      tbody.querySelectorAll('[data-editar]').forEach((b) =>
+        b.addEventListener('click', () => abrirEdicion(Number(b.dataset.editar))));
+      tbody.querySelectorAll('[data-eliminar]').forEach((b) =>
+        b.addEventListener('click', () => eliminar(Number(b.dataset.eliminar))));
+      tbody.querySelectorAll('[data-desbloquear]').forEach((b) =>
+        b.addEventListener('click', () => desbloquear(Number(b.dataset.desbloquear))));
+    }
+
+    // Tras diez intentos fallidos la cuenta queda bloqueada y solo la reactiva
+    // un administrador desde aquí.
+    async function desbloquear(id) {
+      const u = usuarios.find((x) => x.id === id);
+      if (!u) return;
+      if (!await confirmar(`¿Reactivar el acceso de «${u.nombre}» (${u.usuario})?`,
+        { titulo: 'Reactivar acceso', aceptar: 'Reactivar', peligro: false })) return;
+      try {
+        await fetchJSON(`/api/usuarios/${id}/desbloquear`, { method: 'POST' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    function pintarLocales(seleccionados) {
+      const marcados = new Set(seleccionados || []);
+      const caja = document.getElementById('u-locales');
+      if (!locales.length) {
+        caja.innerHTML =
+          '<span class="text-muted small">Sin locales aún. Puedes crearlos en Administración › Locales.</span>';
+        return;
+      }
+      caja.innerHTML = locales.map((l) => `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${l.id}" id="local-${l.id}"${
+            marcados.has(l.id) ? ' checked' : ''
+          }>
+          <label class="form-check-label" for="local-${l.id}">${esc(l.nombre)}</label>
+        </div>`).join('');
+    }
+
+    function localesMarcados() {
+      return [...document.querySelectorAll('#u-locales input:checked')].map((i) => Number(i.value));
+    }
+
+    // El departamento solo aplica a los técnicos. El campo se queda a la vista y se
+    // desactiva, en vez de desaparecer: escondiéndolo parecía que no se podía
+    // elegir el departamento de un técnico.
+    function alCambiarRol() {
+      const rol = document.getElementById('u-rol').value;
+      document.getElementById('u-rol-ayuda').textContent = AYUDA_ROL[rol] || '';
+      document.getElementById('u-locales-ayuda').textContent = AYUDA_LOCALES[rol] || '';
+      const grupo = document.getElementById('u-grupo');
+      grupo.disabled = rol !== 'tecnico';
+      document.getElementById('u-grupo-ayuda').textContent = rol === 'tecnico'
+        ? 'El técnico solo recibe y ve las incidencias de este departamento.'
+        : 'Solo los técnicos pertenecen a un departamento.';
+    }
+
+    function abrirNuevo() {
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-usuario').reset();
+      document.getElementById('u-id').value = '';
+      document.getElementById('modal-titulo').textContent = 'Agregar usuario';
+      document.getElementById('btn-guardar').textContent = 'Guardar';
+      document.getElementById('u-email').disabled = false;
+      document.getElementById('u-password-ayuda').textContent = 'Mínimo 8 caracteres.';
+      opciones(document.getElementById('u-grupo'), grupos, { placeholder: 'Elige un departamento' });
+      pintarLocales([]);
+      alCambiarRol();
+      modal.show();
+    }
+
+    function abrirEdicion(id) {
+      const u = usuarios.find((x) => x.id === id);
+      if (!u) return;
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-usuario').reset();
+      document.getElementById('u-id').value = u.id;
+      document.getElementById('modal-titulo').textContent = 'Editar usuario';
+      document.getElementById('btn-guardar').textContent = 'Guardar cambios';
+      document.getElementById('u-nombre').value = u.nombre;
+      // El nombre de usuario identifica la cuenta y no cambia.
+      document.getElementById('u-email').value = u.email || '';
+      document.getElementById('u-rol').value = u.rol;
+      document.getElementById('u-password-ayuda').textContent = 'Déjala en blanco para no cambiarla.';
+      opciones(document.getElementById('u-grupo'), grupos,
+        { placeholder: 'Elige un departamento', seleccionado: u.grupo_id });
+      pintarLocales(u.locales.map((l) => l.id));
+      alCambiarRol();
+      modal.show();
+    }
+
+    async function guardar() {
+      const btn = document.getElementById('btn-guardar');
+      const id = document.getElementById('u-id').value;
+      const cuerpo = {
+        nombre: document.getElementById('u-nombre').value,
+        email: document.getElementById('u-email').value,
+        rol: document.getElementById('u-rol').value,
+        grupo_id: Number(document.getElementById('u-grupo').value) || null,
+        password: document.getElementById('u-password').value,
+        locales: localesMarcados()
+      };
+      ocultarAlerta('modal-alert');
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON(id ? `/api/usuarios/${id}` : '/api/usuarios', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cuerpo)
+        });
+        modal.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('modal-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    async function eliminar(id) {
+      const u = usuarios.find((x) => x.id === id);
+      if (!u) return;
+      if (!await confirmar(`¿Eliminar el usuario «${u.nombre}» (${u.usuario})?`,
+        { titulo: 'Eliminar usuario' })) return;
+      try {
+        await fetchJSON(`/api/usuarios/${id}`, { method: 'DELETE' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    document.getElementById('btn-guardar').addEventListener('click', guardar);
+    init();
+  </script>
+</body>
+</html>

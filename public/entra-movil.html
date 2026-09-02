@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Volver a la app — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <!-- Donde termina la entrada con Office 365 cuando la empezó la app móvil.
+       Aquí estamos en el navegador del teléfono, así que lo único que queda es
+       devolver el vale a la app por su enlace. Se intenta solo; el botón está
+       para cuando el navegador no deja saltar sin que alguien toque. -->
+  <div class="d-flex align-items-center justify-content-center p-3" style="min-height: 100vh">
+    <div class="card border-0 shadow-sm w-100" style="max-width: 360px">
+      <div class="card-body p-4 text-center">
+        <small class="text-muted fw-semibold text-uppercase" id="marca"></small>
+        <h4 class="fw-bold mb-3">Incidencias</h4>
+        <div id="aviso-alert" class="alert d-none" role="alert"></div>
+        <p class="text-muted small" id="explicacion">Volviendo a la aplicación…</p>
+        <a href="#" class="btn btn-dark w-100 d-none" id="btn-volver">Volver a la app</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    // Con qué nombre se presenta esta instalación. Va sin sesión: aquí todavía
+    // no ha entrado nadie.
+    cargarOrganizacion();
+    // El identificador de la app en las tiendas, que es también su esquema de
+    // enlaces. Si se cambia en `movil/`, se cambia aquí.
+    const ESQUEMA_APP = 'com.ejemplo.soporte';
+    const parametros = new URLSearchParams(location.search);
+    const vale = parametros.get('vale');
+    // Fuera de la barra de direcciones cuanto antes: el vale es de un solo uso
+    // y de dos minutos, pero no tiene por qué quedarse en el historial.
+    history.replaceState(null, '', location.pathname);
+
+    const boton = document.getElementById('btn-volver');
+
+    if (!vale) {
+      mostrarAlerta('aviso-alert', 'Este enlace ya no vale. Vuelve a intentarlo desde la aplicación.');
+      document.getElementById('explicacion').classList.add('d-none');
+    } else {
+      const enlace = `${ESQUEMA_APP}://entra?vale=${encodeURIComponent(vale)}`;
+      boton.href = enlace;
+      // Al salto se le deja terminar de pintar la página: si se intenta antes,
+      // el navegador cancela su propia carga y quien no tenga la app instalada
+      // se queda mirando una pantalla en blanco en vez de este texto.
+      addEventListener('load', () => {
+        location.href = enlace;
+        // Y si en un segundo no se ha ido, lo hace quien está mirando: hay
+        // navegadores que no saltan solos a una aplicación.
+        setTimeout(() => {
+          boton.classList.remove('d-none');
+          document.getElementById('explicacion').textContent =
+            'Si no se ha abierto sola, toca aquí para volver a la aplicación.';
+        }, 1000);
+      });
+    }
+  </script>
+</body>
+</html>

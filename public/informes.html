@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informes — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container-fluid py-4 px-3 px-md-4">
+    <div id="alert-area"></div>
+
+    <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-local">Local</label>
+        <select id="filtro-local" class="form-select form-select-sm" style="--ancho: 180px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-desde">Desde</label>
+        <input type="date" id="filtro-desde" class="form-control form-control-sm" style="--ancho: 160px">
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-hasta">Hasta</label>
+        <input type="date" id="filtro-hasta" class="form-control form-control-sm" style="--ancho: 160px">
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="tabs-informes" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-mantenimiento-btn" data-bs-toggle="tab"
+                data-bs-target="#tab-mantenimiento" type="button" role="tab">
+          Incidencias
+        </button>
+      </li>
+      <!-- Solo para quien lleva la lavandería; al resto se le esconde en init(). -->
+      <li class="nav-item d-none" role="presentation" id="caja-tab-lavanderia">
+        <button class="nav-link" id="tab-lavanderia-btn" data-bs-toggle="tab"
+                data-bs-target="#tab-lavanderia" type="button" role="tab">
+          Lavandería
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="contenido-informes">
+      <div class="tab-pane fade show active" id="tab-mantenimiento" role="tabpanel">
+        <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+          <div id="caja-grupo">
+            <label class="form-label mb-1 small text-muted" for="filtro-grupo">Departamento</label>
+            <select id="filtro-grupo" class="form-select form-select-sm" style="--ancho: 180px"></select>
+          </div>
+          <div>
+            <label class="form-label mb-1 small text-muted" for="filtro-area">Grupo</label>
+            <select id="filtro-area" class="form-select form-select-sm" style="--ancho: 170px"></select>
+          </div>
+          <div>
+            <label class="form-label mb-1 small text-muted" for="filtro-familia">Familia</label>
+            <select id="filtro-familia" class="form-select form-select-sm" style="--ancho: 170px"></select>
+          </div>
+          <div>
+            <label class="form-label mb-1 small text-muted" for="filtro-subfamilia">Subfamilia</label>
+            <select id="filtro-subfamilia" class="form-select form-select-sm" style="--ancho: 170px"></select>
+          </div>
+          <div>
+            <label class="form-label mb-1 small text-muted" for="filtro-tecnico">Técnico</label>
+            <select id="filtro-tecnico" class="form-select form-select-sm" style="--ancho: 200px"></select>
+          </div>
+          <span class="text-muted small ms-auto" id="pie-filtros">
+            Con un técnico elegido se cuentan solo las que tiene asignadas.
+          </span>
+        </div>
+
+        <div class="bg-white border rounded table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Local</th>
+                <th class="num">Entradas</th>
+                <th class="num">Resueltas</th>
+                <th class="num pe-3">Pendientes</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="4" class="text-center text-muted py-4">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="row g-3 mt-1" id="graficos">
+          <div class="col-lg-6 col-xxl-4">
+            <div class="bg-white border rounded p-3 h-100">
+              <div class="chart-title">Entradas por mes</div>
+              <div id="grafico-barras"></div>
+            </div>
+          </div>
+          <div class="col-lg-6 col-xxl-4">
+            <div class="bg-white border rounded p-3 h-100 d-flex flex-column">
+              <div class="chart-title">Reparto por local</div>
+              <div class="d-flex flex-grow-1 align-items-center justify-content-center gap-4 flex-wrap">
+                <div id="grafico-locales" class="grafico-circular"></div>
+                <div id="leyenda-locales"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6 col-xxl-4">
+            <div class="bg-white border rounded p-3 h-100 d-flex flex-column">
+              <div class="chart-title" id="titulo-estado">Abiertas, pendientes y cerradas</div>
+              <div class="d-flex flex-grow-1 align-items-center justify-content-center gap-4 flex-wrap">
+                <div id="grafico-estado" class="grafico-circular"></div>
+                <div id="leyenda-estado"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6 col-xxl-4">
+            <div class="bg-white border rounded p-3 h-100 d-flex flex-column">
+              <div class="chart-title">Reparto por grupo</div>
+              <div class="d-flex flex-grow-1 align-items-center justify-content-center gap-4 flex-wrap">
+                <div id="grafico-areas" class="grafico-circular"></div>
+                <div id="leyenda-areas"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6 col-xxl-4">
+            <div class="bg-white border rounded p-3 h-100 d-flex flex-column">
+              <div class="chart-title">Reparto por familia</div>
+              <div class="d-flex flex-grow-1 align-items-center justify-content-center gap-4 flex-wrap">
+                <div id="grafico-familias" class="grafico-circular"></div>
+                <div id="leyenda-familias"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-lavanderia" role="tabpanel">
+        <div class="bg-white border rounded table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Prenda</th>
+                <th class="num">Enviadas</th>
+                <th class="num">Recibidas</th>
+                <th class="num">Merma</th>
+                <th class="num pe-3">Sin contar todavía</th>
+              </tr>
+            </thead>
+            <tbody id="rows-lavanderia">
+              <tr><td colspan="5" class="text-center text-muted py-4">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip-grafico" class="chart-tooltip d-none"></div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script src="/assets/graficos.js"></script>
+  <script>
+    let sesion = null;
+    let datos = null;
+    // Los catálogos de la pantalla. A nivel de página, no dentro de `init`,
+    // porque los usa también `refrescarTecnicos` al llegar cada informe.
+    let meta = null;
+    const tbody = document.getElementById('rows');
+    const tbodyLavanderia = document.getElementById('rows-lavanderia');
+
+    // Por defecto, lo que va de año.
+    function porDefecto() {
+      const hoy = new Date();
+      const dos = (n) => String(n).padStart(2, '0');
+      return {
+        desde: `${hoy.getFullYear()}-01-01`,
+        hasta: `${hoy.getFullYear()}-${dos(hoy.getMonth() + 1)}-${dos(hoy.getDate())}`
+      };
+    }
+
+    async function init() {
+      sesion = await initPagina('Informes');
+      if (!sesion) return;
+
+      try {
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        alertaPagina(e.message);
+        return;
+      }
+
+      // El técnico informa solo de su departamento: el filtro sobra y confundiría.
+      if (sesion.rol === 'tecnico') {
+        document.getElementById('caja-grupo').classList.add('d-none');
+        document.getElementById('pie-filtros').textContent =
+          'Solo las incidencias que tienes asignadas.';
+      } else {
+        opciones(document.getElementById('filtro-grupo'), meta.grupos, { placeholder: 'Todos los departamentos' });
+      }
+      // La lavandería no es cosa del técnico, así que ni se le enseña la pestaña.
+      if (meta.puedeUsarLavanderia) {
+        document.getElementById('caja-tab-lavanderia').classList.remove('d-none');
+      }
+      opciones(document.getElementById('filtro-local'), meta.locales, { placeholder: 'Todos los locales' });
+      opciones(document.getElementById('filtro-area'), meta.areas || [], { placeholder: 'Todos los grupos' });
+      opciones(document.getElementById('filtro-familia'), meta.familias || [], { placeholder: 'Todas las familias' });
+      opciones(document.getElementById('filtro-subfamilia'), [], { placeholder: 'Todas las subfamilias' });
+      // Un técnico solo puede mirar lo suyo: su nombre viene puesto y el filtro
+      // queda bloqueado. El gestor y el administrador eligen a cualquiera.
+      const tecnico = document.getElementById('filtro-tecnico');
+      opciones(tecnico, meta.tecnicosInformes || [],
+        meta.tecnicoFijado
+          ? { seleccionado: meta.tecnicoFijado }
+          : { placeholder: 'Todos los técnicos' });
+      tecnico.disabled = Boolean(meta.tecnicoFijado);
+
+      const rango = porDefecto();
+      document.getElementById('filtro-desde').value = rango.desde;
+      document.getElementById('filtro-hasta').value = rango.hasta;
+
+      // Elegir el grupo recorta las familias del filtro a las suyas.
+      document.getElementById('filtro-area').addEventListener('change', (e) => {
+        const areaId = Number(e.target.value) || null;
+        opciones(document.getElementById('filtro-familia'), areaId ? familiasDe(meta, areaId) : (meta.familias || []),
+          { placeholder: 'Todas las familias' });
+        opciones(document.getElementById('filtro-subfamilia'), [], { placeholder: 'Todas las subfamilias' });
+        cargar();
+      });
+
+      // Elegir la familia recorta las subfamilias del filtro a las suyas.
+      document.getElementById('filtro-familia').addEventListener('change', (e) => {
+        const familiaId = Number(e.target.value) || null;
+        opciones(document.getElementById('filtro-subfamilia'), subfamiliasDe(meta, familiaId),
+          { placeholder: 'Todas las subfamilias' });
+        cargar();
+      });
+
+      for (const id of [
+        'filtro-grupo', 'filtro-local', 'filtro-subfamilia',
+        'filtro-tecnico', 'filtro-desde', 'filtro-hasta'
+      ]) {
+        document.getElementById(id).addEventListener('change', cargar);
+      }
+      cargar();
+    }
+
+    async function cargar() {
+      const desde = document.getElementById('filtro-desde').value;
+      const hasta = document.getElementById('filtro-hasta').value;
+      if (!desde || !hasta) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Elige un rango de fechas.</td></tr>';
+        return;
+      }
+      const p = new URLSearchParams({ desde, hasta });
+      const grupo = document.getElementById('filtro-grupo').value;
+      const local = document.getElementById('filtro-local').value;
+      const area = document.getElementById('filtro-area').value;
+      const familia = document.getElementById('filtro-familia').value;
+      const subfamilia = document.getElementById('filtro-subfamilia').value;
+      const tecnico = document.getElementById('filtro-tecnico').value;
+      if (grupo) p.set('grupo_id', grupo);
+      if (local) p.set('local_id', local);
+      if (area) p.set('area_id', area);
+      if (familia) p.set('familia_id', familia);
+      if (subfamilia) p.set('subfamilia_id', subfamilia);
+      if (tecnico) p.set('tecnico_id', tecnico);
+
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        datos = await fetchJSON(`/api/informes?${p}`);
+        refrescarTecnicos();
+        render();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    /**
+     * Deja en el desplegable de técnico solo a quien cubre el departamento y el local
+     * que se están mirando, que es quien puede tener incidencias ahí.
+     *
+     * La lista la recorta el servidor y viene con cada informe, así que se
+     * rehace al cambiar los filtros. Si el elegido ya no está entre ellos, se
+     * quita la selección y se vuelve a pedir sin ese filtro.
+     */
+    function refrescarTecnicos() {
+      const tecnico = document.getElementById('filtro-tecnico');
+      // Al técnico le viene fijado su propio nombre y no se toca.
+      if (!meta || meta.tecnicoFijado) return;
+
+      const disponibles = datos.tecnicos || [];
+      const elegido = tecnico.value;
+      const sigue = disponibles.some((t) => String(t.id) === elegido);
+
+      opciones(tecnico, disponibles,
+        sigue
+          ? { seleccionado: Number(elegido), placeholder: 'Todos los técnicos' }
+          : { placeholder: 'Todos los técnicos' });
+
+      if (elegido && !sigue) {
+        // El que estaba elegido no atiende este local: se cae el filtro y se
+        // vuelve a pedir, en vez de enseñar unos números que no son los suyos.
+        tecnico.value = '';
+        cargar();
+      }
+    }
+
+    function render() {
+      // Un local sin ninguna incidencia en el rango no aporta una fila vacía.
+      const filas = datos.locales.filter((l) => l.entrados || l.resueltos || l.pendientes);
+
+      if (!filas.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="text-center text-muted py-4">Sin incidencias en este rango de fechas.</td></tr>';
+      } else {
+        tbody.innerHTML = filas.map((l) => `<tr>
+          <td class="ps-3 fw-medium">${esc(l.nombre)}</td>
+          ${celdaNumero(l.entrados)}
+          ${celdaNumero(l.resueltos)}
+          ${celdaNumero(l.pendientes).replace('class="num', 'class="num pe-3')}
+        </tr>`).join('')
+        + `<tr class="table-light">
+          <td class="ps-3 fw-bold">Total</td>
+          <td class="num fw-bold">${fmtEntero.format(datos.total.entrados)}</td>
+          <td class="num fw-bold">${fmtEntero.format(datos.total.resueltos)}</td>
+          <td class="num fw-bold pe-3">${fmtEntero.format(datos.total.pendientes)}</td>
+        </tr>`;
+      }
+
+      renderLavanderia();
+      pintarGraficos();
+    }
+
+    function renderLavanderia() {
+      // Una prenda sin ningún envío en el rango no aporta una fila vacía.
+      const filas = (datos.lavanderia || []).filter((p) => p.enviado || p.recibido || p.pendiente);
+
+      if (!filas.length) {
+        tbodyLavanderia.innerHTML =
+          '<tr><td colspan="5" class="text-center text-muted py-4">Sin envíos a lavandería en este rango de fechas.</td></tr>';
+        return;
+      }
+      const total = filas.reduce((acc, p) => ({
+        enviado: acc.enviado + p.enviado,
+        recibido: acc.recibido + p.recibido,
+        merma: acc.merma + p.merma,
+        pendiente: acc.pendiente + p.pendiente
+      }), { enviado: 0, recibido: 0, merma: 0, pendiente: 0 });
+
+      tbodyLavanderia.innerHTML = filas.map((p) => `<tr>
+        <td class="ps-3 fw-medium">${esc(p.nombre)}</td>
+        ${celdaNumero(p.enviado)}
+        ${celdaNumero(p.recibido)}
+        <td class="num ${p.merma > 0 ? 'text-danger fw-semibold' : ''}">${p.merma > 0 ? fmtEntero.format(p.merma) : '—'}</td>
+        ${celdaNumero(p.pendiente).replace('class="num', 'class="num pe-3')}
+      </tr>`).join('')
+      + `<tr class="table-light">
+        <td class="ps-3 fw-bold">Total</td>
+        <td class="num fw-bold">${fmtEntero.format(total.enviado)}</td>
+        <td class="num fw-bold">${fmtEntero.format(total.recibido)}</td>
+        <td class="num fw-bold ${total.merma > 0 ? 'text-danger' : ''}">${fmtEntero.format(total.merma)}</td>
+        <td class="num fw-bold pe-3">${fmtEntero.format(total.pendiente)}</td>
+      </tr>`;
+    }
+
+    const SIN_DATOS = 'Sin incidencias en este rango de fechas.';
+
+    function pintarGraficos() {
+      const columnas = datos.meses.map((m) => {
+        const [anio, mes] = m.mes.split('-');
+        return { etiqueta: MESES_CORTO[Number(mes) - 1], detalle: anio };
+      });
+      graficoBarras(
+        document.getElementById('grafico-barras'),
+        columnas,
+        datos.meses.map((m) => m.entrados),
+        {
+          etiquetaTotal: 'Entradas',
+          sinDatos: SIN_DATOS,
+          ariaLabel: 'Incidencias abiertas por mes'
+        }
+      );
+
+      graficoCircular(
+        document.getElementById('grafico-locales'),
+        document.getElementById('leyenda-locales'),
+        datos.locales.map((l) => ({ nombre: l.nombre, total: l.entrados })),
+        {
+          sinDatos: SIN_DATOS,
+          ariaLabel: 'Reparto de las incidencias por local',
+          otras: 'Otros locales'
+        }
+      );
+
+      // Con un técnico elegido, este panel es el que responde a «cuántas tiene
+      // abiertas, pendientes y cerradas».
+      const tecnico = document.getElementById('filtro-tecnico');
+      const nombre = tecnico.value
+        ? tecnico.options[tecnico.selectedIndex].textContent
+        : null;
+      document.getElementById('titulo-estado').textContent = nombre
+        ? `Estado de las de ${nombre}`
+        : 'Abiertas, pendientes y cerradas';
+
+      graficoCircular(
+        document.getElementById('grafico-estado'),
+        document.getElementById('leyenda-estado'),
+        [
+          { nombre: 'Abiertas', total: datos.estado.abiertas },
+          { nombre: 'Pendientes', total: datos.estado.pendientes },
+          { nombre: 'Cerradas', total: datos.estado.cerradas }
+        ],
+        {
+          sinDatos: SIN_DATOS,
+          ariaLabel: 'Incidencias abiertas, pendientes y cerradas'
+        }
+      );
+
+      // Solo entran las que tienen grupo o familia: las incidencias sin
+      // categorizar no aparecen en estos repartos, no como si fueran «Otras».
+      graficoCircular(
+        document.getElementById('grafico-areas'),
+        document.getElementById('leyenda-areas'),
+        datos.areas.map((a) => ({ nombre: a.nombre, total: a.entrados })),
+        {
+          sinDatos: SIN_DATOS,
+          ariaLabel: 'Reparto de las incidencias por grupo',
+          otras: 'Otros grupos'
+        }
+      );
+
+      graficoCircular(
+        document.getElementById('grafico-familias'),
+        document.getElementById('leyenda-familias'),
+        datos.familias.map((f) => ({ nombre: f.nombre, total: f.entrados })),
+        {
+          sinDatos: SIN_DATOS,
+          ariaLabel: 'Reparto de las incidencias por familia',
+          otras: 'Otras familias'
+        }
+      );
+    }
+
+    let repintado = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(repintado);
+      repintado = setTimeout(() => { if (datos) pintarGraficos(); }, 200);
+    });
+
+    // Las gráficas se miden por el ancho de su caja, y esa caja está a cero
+    // mientras la pestaña de mantenimiento no se ve. Al volver a mostrarla se
+    // repintan, por si el tamaño cambió mientras tanto (p. ej. al girar el
+    // móvil estando en la otra pestaña).
+    document.getElementById('tab-mantenimiento-btn')
+      .addEventListener('shown.bs.tab', () => { if (datos) pintarGraficos(); });
+
+    init();
+  </script>
+</body>
+</html>

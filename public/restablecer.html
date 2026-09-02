@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cambiar la contraseña — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <div class="d-flex align-items-center justify-content-center p-3" style="min-height: 100vh">
+    <div class="card border-0 shadow-sm w-100" style="max-width: 360px">
+      <div class="card-body p-4">
+        <small class="text-muted fw-semibold text-uppercase" id="marca"></small>
+        <h4 class="fw-bold mb-3">Cambiar la contraseña</h4>
+
+        <div id="alerta" class="alert d-none" role="alert"></div>
+
+        <div id="cargando" class="text-muted small">Comprobando el enlace…</div>
+
+        <form id="form-cambio" class="d-none">
+          <div class="mb-3">
+            <label class="form-label" for="p1">Contraseña nueva</label>
+            <input type="password" class="form-control" id="p1" autocomplete="new-password" required>
+            <div class="form-text">Mínimo 8 caracteres.</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label" for="p2">Repítela</label>
+            <input type="password" class="form-control" id="p2" autocomplete="new-password" required>
+          </div>
+          <button type="submit" class="btn btn-dark w-100" id="btn-cambiar">Guardar</button>
+        </form>
+
+        <div id="listo" class="d-none">
+          <p class="text-success">Contraseña cambiada. Ya puedes entrar con ella.</p>
+          <a class="btn btn-dark w-100" href="/login.html">Ir al acceso</a>
+        </div>
+
+        <div class="text-center mt-3">
+          <a class="small text-muted" href="/login.html">Volver al acceso</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    // Con qué nombre se presenta esta instalación. Va sin sesión: aquí todavía
+    // no ha entrado nadie.
+    cargarOrganizacion();
+    const vale = new URLSearchParams(location.search).get('vale') || '';
+
+    function ver(id, visible) {
+      document.getElementById(id).classList.toggle('d-none', !visible);
+    }
+
+    // El enlace se comprueba antes de pedir nada: si ya no vale, más vale
+    // decirlo ahora que después de escribir dos veces la contraseña.
+    async function comprobar() {
+      if (!vale) {
+        ver('cargando', false);
+        mostrarAlerta('alerta', 'Este enlace no es válido. Pide otro desde la pantalla de acceso.');
+        return;
+      }
+      try {
+        const res = await fetchJSON(`/api/restablecer?vale=${encodeURIComponent(vale)}`);
+        ver('cargando', false);
+        if (res.valido) {
+          ver('form-cambio', true);
+          document.getElementById('p1').focus();
+        } else {
+          mostrarAlerta('alerta',
+            'El enlace ha caducado o ya se ha usado. Pide otro desde la pantalla de acceso.');
+        }
+      } catch (e) {
+        ver('cargando', false);
+        mostrarAlerta('alerta', e.message);
+      }
+    }
+
+    document.getElementById('form-cambio').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const boton = document.getElementById('btn-cambiar');
+      const p1 = document.getElementById('p1').value;
+      const p2 = document.getElementById('p2').value;
+      ocultarAlerta('alerta');
+
+      if (p1 !== p2) {
+        mostrarAlerta('alerta', 'Las dos contraseñas no coinciden.');
+        return;
+      }
+      if (p1.length < 8) {
+        mostrarAlerta('alerta', 'La contraseña debe tener al menos 8 caracteres.');
+        return;
+      }
+
+      boton.disabled = true;
+      boton.textContent = 'Guardando…';
+      try {
+        await fetchJSON('/api/restablecer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vale, password: p1 })
+        });
+        ver('form-cambio', false);
+        ver('listo', true);
+      } catch (err) {
+        mostrarAlerta('alerta', err.message);
+        boton.disabled = false;
+        boton.textContent = 'Guardar';
+      }
+    });
+
+    comprobar();
+  </script>
+</body>
+</html>

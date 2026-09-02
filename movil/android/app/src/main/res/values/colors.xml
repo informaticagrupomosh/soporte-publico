@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Azul del back office del grupo. Tiñe el icono pequeño del aviso. -->
+    <color name="color_aviso">#0D6EFD</color>
+    <color name="fondo_icono">#0D6EFD</color>
+    <color name="fondo_arranque">#FFFFFF</color>
+</resources>

@@ -1,0 +1,13 @@
+node_modules/
+data/
+*.log
+
+# Lo que deja el Finder de macOS por cada carpeta que se abre.
+.DS_Store
+
+# Los archivos de Firebase de cada instalación. No son secretos —viajan dentro
+# de cada APK y de cada IPA—, pero identifican el proyecto de quien despliega
+# esto y no tienen nada que hacer en un repositorio compartido: cada uno se baja
+# el suyo. Cómo, en movil/README.md.
+movil/android/app/google-services.json
+movil/ios/Runner/GoogleService-Info.plist

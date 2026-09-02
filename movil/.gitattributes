@@ -1,0 +1,7 @@
+# El envoltorio de Gradle es delicado con los finales de línea: en Windows,
+# `gradlew.bat` tiene que ir con CRLF y el script de Unix con LF, o ninguno de
+# los dos arranca. Y el .jar no se puede tocar.
+gradle-wrapper.jar binary
+*.jar              binary
+gradlew            text eol=lf
+gradlew.bat        text eol=crlf

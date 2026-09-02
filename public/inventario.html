@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventario — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    .foto-mini {
+      width: 40px; height: 40px; object-fit: cover; border-radius: .375rem;
+      background: var(--bs-secondary-bg);
+    }
+    .foto-grande {
+      width: 100%; max-height: 260px; object-fit: contain; border-radius: .5rem;
+      background: var(--bs-secondary-bg);
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Inventario</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nuevo">Agregar activo</button>
+    </div>
+    <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-grupo">Departamento</label>
+        <select id="filtro-grupo" class="form-select form-select-sm" style="--ancho: 190px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-local">Local</label>
+        <select id="filtro-local" class="form-select form-select-sm" style="--ancho: 180px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-estado">Estado</label>
+        <select id="filtro-estado" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+      <div class="flex-grow-1" style="min-width: 200px">
+        <label class="form-label mb-1 small text-muted" for="filtro-q">Buscar</label>
+        <input type="search" id="filtro-q" class="form-control form-control-sm" placeholder="Nombre o descripción">
+      </div>
+    </div>
+
+    <div class="bg-white border rounded table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nº</th>
+            <th>Foto</th>
+            <th>Nombre</th>
+            <th class="col-compacta">Departamento</th>
+            <th class="col-compacta">Local</th>
+            <th class="col-compacta">Estado</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="7" class="text-center text-muted py-4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Alta / edición -->
+  <div class="modal fade" id="modal-activo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="modal-titulo">Agregar activo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert d-none" role="alert"></div>
+          <form id="form-activo">
+            <input type="hidden" id="a-id">
+            <div class="mb-3">
+              <label class="form-label" for="a-nombre">Nombre</label>
+              <input type="text" class="form-control" id="a-nombre" placeholder="Nombre" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="a-descripcion">
+                Descripción <span class="text-muted">(opcional)</span>
+              </label>
+              <textarea class="form-control" id="a-descripcion" rows="2"></textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="a-grupo">Departamento</label>
+                <select class="form-select" id="a-grupo" required></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="a-local">Local</label>
+                <select class="form-select" id="a-local" required></select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="a-estado">Estado</label>
+              <select class="form-select" id="a-estado"></select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="a-foto">
+                Foto <span class="text-muted">(opcional)</span>
+              </label>
+              <input type="file" class="form-control" id="a-foto" accept="image/*">
+              <div class="form-text">Se sube al guardar.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ficha -->
+  <div class="modal fade" id="modal-ficha" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="ficha-titulo">Activo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="ficha-cuerpo"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    const ESTADOS_ACTIVO = { en_uso: 'En uso', roto: 'Roto', almacen: 'Guardado en almacén' };
+    const BADGE_ESTADO_ACTIVO = { en_uso: 'text-bg-success', roto: 'text-bg-danger', almacen: 'text-bg-secondary' };
+
+    let activos = [];
+    let meta = null;
+    const tbody = document.getElementById('rows');
+    const modal = new bootstrap.Modal(document.getElementById('modal-activo'));
+    const modalFicha = new bootstrap.Modal(document.getElementById('modal-ficha'));
+
+    async function init() {
+      await initPagina('Inventario');
+      meta = await fetchJSON('/api/meta');
+
+      opciones(document.getElementById('filtro-grupo'), meta.grupos, { placeholder: 'Todos los departamentos' });
+      opciones(document.getElementById('filtro-local'), meta.locales, { placeholder: 'Todos los locales' });
+      opciones(document.getElementById('filtro-estado'), comoLista(ESTADOS_ACTIVO), { placeholder: 'Todos los estados' });
+      for (const id of ['filtro-grupo', 'filtro-local', 'filtro-estado']) {
+        document.getElementById(id).addEventListener('change', cargar);
+      }
+      document.getElementById('filtro-q').addEventListener('input', debounce(cargar, 300));
+
+      opciones(document.getElementById('a-grupo'), meta.grupos, { placeholder: 'Elige un departamento' });
+      opciones(document.getElementById('a-local'), meta.locales, { placeholder: 'Elige un local' });
+      opciones(document.getElementById('a-estado'), comoLista(ESTADOS_ACTIVO), { seleccionado: 'en_uso' });
+
+      document.getElementById('btn-nuevo').addEventListener('click', abrirNuevo);
+      document.getElementById('btn-guardar').addEventListener('click', guardar);
+      cargar();
+    }
+
+    function debounce(fn, ms) {
+      let temporizador;
+      return (...args) => {
+        clearTimeout(temporizador);
+        temporizador = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    function parametros() {
+      const p = new URLSearchParams();
+      const grupo = document.getElementById('filtro-grupo').value;
+      const local = document.getElementById('filtro-local').value;
+      const estado = document.getElementById('filtro-estado').value;
+      const q = document.getElementById('filtro-q').value.trim();
+      if (grupo) p.set('grupo_id', grupo);
+      if (local) p.set('local_id', local);
+      if (estado) p.set('estado', estado);
+      if (q) p.set('q', q);
+      return p.toString();
+    }
+
+    // El id lo asigna la base y no tiene tope, pero con tres cifras basta de
+    // sobra para lo que cabe en un local: por debajo de 1000 se ve «001», y a
+    // partir de ahí se enseña entero en vez de truncarlo.
+    function numeroActivo(id) {
+      return String(id).padStart(3, '0');
+    }
+
+    async function cargar() {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        activos = await fetchJSON(`/api/activos?${parametros()}`);
+        render();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    function render() {
+      if (!activos.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="7" class="text-center text-muted py-4">Sin activos. Agrega uno arriba.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = activos.map((a) => `<tr>
+        <td class="ps-3 text-muted">Nº ${numeroActivo(a.id)}</td>
+        <td>
+          ${a.foto
+            ? `<img class="foto-mini" src="/api/activos/${a.id}/foto" alt="">`
+            : '<div class="foto-mini"></div>'}
+        </td>
+        <td class="fw-medium">${esc(a.nombre)}</td>
+        <td class="text-muted">${esc(a.grupo_nombre)}</td>
+        <td class="text-muted">${esc(a.local_nombre)}</td>
+        <td><span class="badge ${BADGE_ESTADO_ACTIVO[a.estado]}">${esc(ESTADOS_ACTIVO[a.estado])}</span></td>
+        <td class="text-end pe-3 text-nowrap acciones-fila">
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-ver="${a.id}">Ver</button>
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${a.id}">Editar</button>
+          <button class="btn btn-sm btn-link text-danger p-0" data-eliminar="${a.id}">Eliminar</button>
+        </td>
+      </tr>`).join('');
+
+      tbody.querySelectorAll('[data-ver]').forEach((b) =>
+        b.addEventListener('click', () => verFicha(Number(b.dataset.ver))));
+      tbody.querySelectorAll('[data-editar]').forEach((b) =>
+        b.addEventListener('click', () => abrirEdicion(Number(b.dataset.editar))));
+      tbody.querySelectorAll('[data-eliminar]').forEach((b) =>
+        b.addEventListener('click', () => eliminar(Number(b.dataset.eliminar))));
+    }
+
+    function abrirNuevo() {
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-activo').reset();
+      document.getElementById('a-id').value = '';
+      opciones(document.getElementById('a-estado'), comoLista(ESTADOS_ACTIVO), { seleccionado: 'en_uso' });
+      document.getElementById('modal-titulo').textContent = 'Agregar activo';
+      document.getElementById('btn-guardar').textContent = 'Guardar';
+      modal.show();
+    }
+
+    function abrirEdicion(id) {
+      const a = activos.find((x) => x.id === id);
+      if (!a) return;
+      ocultarAlerta('modal-alert');
+      document.getElementById('a-id').value = a.id;
+      document.getElementById('a-nombre').value = a.nombre;
+      document.getElementById('a-descripcion').value = a.descripcion || '';
+      opciones(document.getElementById('a-grupo'), meta.grupos, { seleccionado: a.grupo_id });
+      opciones(document.getElementById('a-local'), meta.locales, { seleccionado: a.local_id });
+      opciones(document.getElementById('a-estado'), comoLista(ESTADOS_ACTIVO), { seleccionado: a.estado });
+      document.getElementById('a-foto').value = '';
+      document.getElementById('modal-titulo').textContent = 'Editar activo';
+      document.getElementById('btn-guardar').textContent = 'Guardar cambios';
+      modal.show();
+    }
+
+    async function subirFoto(id, archivo) {
+      await fetch(`/api/activos/${id}/foto?nombre=${encodeURIComponent(archivo.name)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': archivo.type || 'application/octet-stream' },
+        body: archivo
+      }).then(async (r) => {
+        if (!r.ok) {
+          const datos = await r.json().catch(() => null);
+          throw new Error((datos && datos.error) || 'No se ha podido subir la foto.');
+        }
+      });
+    }
+
+    async function guardar() {
+      const btn = document.getElementById('btn-guardar');
+      const id = document.getElementById('a-id').value;
+      const archivo = document.getElementById('a-foto').files[0];
+      ocultarAlerta('modal-alert');
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        const cuerpo = {
+          nombre: document.getElementById('a-nombre').value,
+          descripcion: document.getElementById('a-descripcion').value,
+          grupo_id: Number(document.getElementById('a-grupo').value) || null,
+          local_id: Number(document.getElementById('a-local').value) || null,
+          estado: document.getElementById('a-estado').value
+        };
+        const activo = await fetchJSON(id ? `/api/activos/${id}` : '/api/activos', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cuerpo)
+        });
+        if (archivo) {
+          btn.textContent = 'Subiendo la foto…';
+          await subirFoto(activo.id, archivo);
+        }
+        modal.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('modal-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    async function eliminar(id) {
+      const a = activos.find((x) => x.id === id);
+      if (!a) return;
+      if (!await confirmar(`¿Eliminar el activo «${a.nombre}»?`, { titulo: 'Eliminar activo' })) return;
+      try {
+        await fetchJSON(`/api/activos/${id}`, { method: 'DELETE' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function verFicha(id) {
+      document.getElementById('ficha-cuerpo').innerHTML =
+        '<p class="text-center text-muted py-4">Cargando…</p>';
+      document.getElementById('ficha-titulo').textContent = 'Activo';
+      modalFicha.show();
+      try {
+        const a = await fetchJSON(`/api/activos/${id}`);
+        document.getElementById('ficha-titulo').textContent = `${a.nombre} (Nº ${numeroActivo(a.id)})`;
+        document.getElementById('ficha-cuerpo').innerHTML = fichaHtml(a);
+      } catch (e) {
+        document.getElementById('ficha-cuerpo').innerHTML =
+          `<p class="text-center text-danger py-4">${esc(e.message)}</p>`;
+      }
+    }
+
+    function fichaHtml(a) {
+      const foto = a.foto
+        ? `<img class="foto-grande mb-3" src="/api/activos/${a.id}/foto" alt="">`
+        : '';
+      const incidencias = a.incidencias.length
+        ? `<div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light">
+                <tr><th>Incidencia</th><th>Estado</th><th>Abierta</th></tr>
+              </thead>
+              <tbody>
+                ${a.incidencias.map((t) => `<tr>
+                  <td><a href="/ticket.html?id=${t.id}">${esc(t.titulo)}</a></td>
+                  <td>${esc(t.estado)}</td>
+                  <td class="text-muted">${fmtFechaDe(t.creado_en)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`
+        : '<p class="text-muted mb-0">Sin incidencias registradas.</p>';
+      return `
+        ${foto}
+        <dl class="ficha row mb-3">
+          <div class="col-6 col-md-3"><dt>Estado</dt>
+            <dd><span class="badge ${BADGE_ESTADO_ACTIVO[a.estado]}">${esc(ESTADOS_ACTIVO[a.estado])}</span></dd></div>
+          <div class="col-6 col-md-3"><dt>Departamento</dt><dd>${esc(a.grupo_nombre)}</dd></div>
+          <div class="col-6 col-md-3"><dt>Local</dt><dd>${esc(a.local_nombre)}</dd></div>
+        </dl>
+        ${a.descripcion ? `<p>${esc(a.descripcion)}</p>` : ''}
+        <div class="chart-title mb-2">Incidencias</div>
+        ${incidencias}
+      `;
+    }
+
+    init();
+  </script>
+</body>
+</html>

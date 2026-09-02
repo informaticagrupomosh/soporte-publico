@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tareas programadas — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Tareas programadas</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nuevo">Agregar tarea</button>
+    </div>
+    <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+      <span class="text-muted small" id="estado-programador"></span>
+      <span class="text-muted small ms-auto" id="contador"></span>
+    </div>
+
+    <div class="bg-white border rounded table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Tarea</th>
+            <th>Cuándo</th>
+            <th>Próxima</th>
+            <th>Departamento</th>
+            <th class="col-compacta">Local</th>
+            <th>Mantenimiento</th>
+            <th class="num col-compacta">Incidencias</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="8" class="text-center text-muted py-4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modal-tarea" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="modal-titulo">Agregar tarea</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert d-none" role="alert"></div>
+          <form id="form-tarea">
+            <input type="hidden" id="t-id">
+            <div class="row">
+              <div class="col-12 mb-3">
+                <label class="form-label" for="t-nombre">Nombre</label>
+                <input type="text" class="form-control" id="t-nombre"
+                       placeholder="Nombre" required>
+                <div class="form-text">Solo para reconocerla en esta lista.</div>
+              </div>
+            </div>
+
+            <!-- Cuándo se repite: frecuencia a la izquierda, sus ajustes a la derecha -->
+            <fieldset class="border rounded p-3 mb-3">
+              <legend class="float-none w-auto px-2 mb-0 fs-6 fw-semibold">Cuándo se repite</legend>
+
+              <div class="row mb-3">
+                <div class="col-sm-6 mb-3 mb-sm-0">
+                  <label class="form-label" for="t-fecha">Empieza el</label>
+                  <input type="date" class="form-control" id="t-fecha" required>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label" for="t-hora">A las</label>
+                  <input type="time" class="form-control" id="t-hora" value="09:00" required>
+                </div>
+              </div>
+
+              <div class="planificacion">
+                <div class="frecuencia">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="frecuencia" id="f-una_vez" value="una_vez">
+                    <label class="form-check-label" for="f-una_vez">Una vez</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="frecuencia" id="f-diaria" value="diaria" checked>
+                    <label class="form-check-label" for="f-diaria">Diaria</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="frecuencia" id="f-semanal" value="semanal">
+                    <label class="form-check-label" for="f-semanal">Semanal</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="frecuencia" id="f-mensual" value="mensual">
+                    <label class="form-check-label" for="f-mensual">Mensual</label>
+                  </div>
+                </div>
+
+                <div class="ajustes">
+                  <p class="text-muted small mb-0 d-none" id="ajustes-una_vez">
+                    Se abre una sola vez, el día y la hora de arriba.
+                  </p>
+
+                  <div class="d-none" id="ajustes-diaria">
+                    <label class="form-label" for="t-cada-dias">Repetir cada</label>
+                    <div class="d-flex align-items-center gap-2">
+                      <input type="number" class="form-control" id="t-cada-dias"
+                             min="1" max="365" value="1" style="width: 90px">
+                      <span class="text-muted small">días</span>
+                    </div>
+                  </div>
+
+                  <div class="d-none" id="ajustes-semanal">
+                    <label class="form-label" for="t-cada-semanas">Repetir cada</label>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                      <input type="number" class="form-control" id="t-cada-semanas"
+                             min="1" max="365" value="1" style="width: 90px">
+                      <span class="text-muted small">semanas, los días:</span>
+                    </div>
+                    <div class="rejilla-dias" id="t-dias-semana"></div>
+                  </div>
+
+                  <div class="d-none" id="ajustes-mensual">
+                    <label class="form-label">Días del mes</label>
+                    <div class="rejilla-dias mb-3" id="t-dias-mes"></div>
+                    <label class="form-label">Meses</label>
+                    <div class="rejilla-meses" id="t-meses"></div>
+                    <div class="form-text">Con los doce marcados, se repite todos los meses.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border-top mt-3 pt-2 text-muted small" id="t-resumen"></div>
+            </fieldset>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-grupo">Departamento</label>
+                <select class="form-select" id="t-grupo" required></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-local">Local</label>
+                <select class="form-select" id="t-local"></select>
+                <div class="form-text">Sin local, abre una incidencia por cada local.</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-area">
+                  Grupo <span class="text-muted">(opcional)</span>
+                </label>
+                <select class="form-select" id="t-area"></select>
+                <div class="form-text">El equipo que mantiene, para que salga en el calendario.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-familia">
+                  Familia <span class="text-muted">(opcional)</span>
+                </label>
+                <select class="form-select" id="t-familia"></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="t-externo">
+                  <label class="form-check-label" for="t-externo">Mantenimiento externo</label>
+                  <div class="form-text">La incidencia la atiende una empresa con contrato, no el propio personal.</div>
+                </div>
+              </div>
+              <div class="col-12 mb-3 d-none" id="caja-empresa">
+                <label class="form-label" for="t-empresa">Empresa</label>
+                <select class="form-select" id="t-empresa"></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 mb-3">
+                <label class="form-label" for="t-titulo">Título de la incidencia</label>
+                <input type="text" class="form-control" id="t-titulo"
+                       placeholder="Título de la incidencia" required>
+              </div>
+              <div class="col-12 mb-3">
+                <label class="form-label" for="t-descripcion">
+                  Descripción de la incidencia <span class="text-muted">(opcional)</span>
+                </label>
+                <textarea class="form-control" id="t-descripcion" rows="3"
+                          placeholder="Descripción de la incidencia"></textarea>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-prioridad">Prioridad</label>
+                <select class="form-select" id="t-prioridad"></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-activo">Estado</label>
+                <select class="form-select" id="t-activo">
+                  <option value="1">Activa</option>
+                  <option value="0">Detenida</option>
+                </select>
+                <div class="form-text">Una tarea detenida se guarda pero no abre incidencias.</div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let tareas = [];
+    let meta = null;
+    const tbody = document.getElementById('rows');
+    const modal = new bootstrap.Modal(document.getElementById('modal-tarea'));
+
+    function hoyISO() {
+      const hoy = new Date();
+      const dos = (n) => String(n).padStart(2, '0');
+      return `${hoy.getFullYear()}-${dos(hoy.getMonth() + 1)}-${dos(hoy.getDate())}`;
+    }
+
+    // «2026-08-28» a fecha local. `new Date(iso)` la leería como medianoche UTC,
+    // y al oeste de Greenwich saldría el día de antes.
+    function fechaLocal(iso) {
+      const [a, m, d] = iso.split('-').map(Number);
+      return new Date(a, m - 1, d);
+    }
+
+    const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+    async function init() {
+      await initPagina('Tareas programadas');
+      document.getElementById('btn-nuevo').addEventListener('click', () => abrirNuevo());
+      pintarRejillas();
+      // Cualquier cambio en la planificación reescribe el resumen de abajo.
+      document.querySelectorAll('#form-tarea input, #form-tarea select').forEach((campo) =>
+        campo.addEventListener('change', alCambiarPlan));
+      document.getElementById('t-cada-dias').addEventListener('input', alCambiarPlan);
+      document.getElementById('t-cada-semanas').addEventListener('input', alCambiarPlan);
+      document.getElementById('t-externo').addEventListener('change', alCambiarExterno);
+      document.getElementById('t-area').addEventListener('change', (e) => {
+        const areaId = Number(e.target.value) || null;
+        opciones(document.getElementById('t-familia'), familiasDe(meta, areaId),
+          { placeholder: areaId ? 'Sin familia' : 'Elige antes un grupo' });
+      });
+      try {
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        alertaPagina(e.message);
+        return;
+      }
+      cargar();
+
+      // Llegando desde el calendario: «tareas.html?fecha=2026-08-28» abre el
+      // formulario en ese día. Se necesita `meta` cargada, así que va aquí.
+      const fecha = new URLSearchParams(location.search).get('fecha');
+      if (fecha && ISO.test(fecha)) {
+        abrirNuevo(fecha);
+        // Se quita de la barra: recargar la página no debería volver a abrir
+        // el formulario, y menos después de haber guardado.
+        history.replaceState(null, '', location.pathname);
+      }
+
+      pintarEstado();
+      // El indicador se refresca solo: si el último repaso deja de moverse, el
+      // programador está parado y se ve sin tener que suponerlo.
+      setInterval(pintarEstado, 30000);
+    }
+
+    async function pintarEstado() {
+      const caja = document.getElementById('estado-programador');
+      try {
+        const estado = await fetchJSON('/api/programador');
+        if (!estado.ultimoRepaso) {
+          caja.textContent = 'El programador todavía no ha repasado las tareas.';
+          return;
+        }
+        const hace = Math.round((Date.now() - Date.parse(estado.ultimoRepaso)) / 1000);
+        const cuando = hace < 90 ? `hace ${Math.max(hace, 0)} s` : `hace ${Math.round(hace / 60)} min`;
+        caja.className = hace > 300 ? 'text-danger small' : 'text-muted small';
+        caja.textContent = hace > 300
+          ? `El programador no repasa desde ${cuando}. Reinicia la aplicación.`
+          : `Programador activo · último repaso ${cuando} · horario de ${estado.zona}`;
+      } catch (e) {
+        caja.className = 'text-muted small';
+        caja.textContent = '';
+      }
+    }
+
+    // ---------- Rejillas de días y meses ----------
+
+    function pintarRejillas() {
+      document.getElementById('t-dias-semana').innerHTML = DIAS_SEMANA.map((d) => `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${d.id}" id="ds-${d.id}">
+          <label class="form-check-label" for="ds-${d.id}">${esc(d.corto)}</label>
+        </div>`).join('');
+
+      let dias = '';
+      for (let d = 1; d <= 31; d += 1) {
+        dias += `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${d}" id="dm-${d}">
+          <label class="form-check-label" for="dm-${d}">${d}</label>
+        </div>`;
+      }
+      document.getElementById('t-dias-mes').innerHTML = dias;
+
+      document.getElementById('t-meses').innerHTML = MESES.map((nombre, i) => `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${i + 1}" id="mes-${i + 1}">
+          <label class="form-check-label" for="mes-${i + 1}">${esc(MESES_CORTO[i])}</label>
+        </div>`).join('');
+    }
+
+    function marcar(selector, valores) {
+      const marcados = new Set((valores || []).map(Number));
+      document.querySelectorAll(selector).forEach((i) => { i.checked = marcados.has(Number(i.value)); });
+    }
+
+    function marcados(selector) {
+      return [...document.querySelectorAll(`${selector}:checked`)].map((i) => Number(i.value));
+    }
+
+    function frecuenciaElegida() {
+      const elegido = document.querySelector('input[name="frecuencia"]:checked');
+      return elegido ? elegido.value : 'diaria';
+    }
+
+    // Solo se enseñan los ajustes de la frecuencia elegida.
+    function alCambiarPlan() {
+      const frecuencia = frecuenciaElegida();
+      for (const nombre of ['una_vez', 'diaria', 'semanal', 'mensual']) {
+        document.getElementById(`ajustes-${nombre}`).classList.toggle('d-none', nombre !== frecuencia);
+      }
+      const resumen = describirPlan(planDelFormulario());
+      document.getElementById('t-resumen').textContent = resumen
+        || 'Marca los días en los que se repite.';
+    }
+
+    function planDelFormulario() {
+      const frecuencia = frecuenciaElegida();
+      return {
+        frecuencia,
+        hora: document.getElementById('t-hora').value,
+        fecha_inicio: document.getElementById('t-fecha').value,
+        cada: Number(document.getElementById(
+          frecuencia === 'semanal' ? 't-cada-semanas' : 't-cada-dias'
+        ).value) || 1,
+        dias_semana: marcados('#t-dias-semana input').join(','),
+        dias_mes: marcados('#t-dias-mes input').join(','),
+        meses: marcados('#t-meses input').join(',')
+      };
+    }
+
+    // ---------- Lista ----------
+
+    async function cargar() {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        tareas = await fetchJSON('/api/tareas');
+        render();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    // Cuándo le toca la próxima vez. Es lo que despeja la duda de si una tarea
+    // recién creada va a hacer algo: puesta a una hora que ya pasó hoy, no
+    // salta hasta mañana, y sin este dato eso parece una avería.
+    function proximaHtml(t) {
+      if (!t.activo) return '<span class="text-muted">Detenida</span>';
+      if (!t.proxima) return '<span class="text-muted">Ya se ejecutó</span>';
+      // La hora la escribe el servidor en la zona de la aplicación; del ISO solo
+      // se saca cuánto falta, que no depende de la zona.
+      return `${esc(t.proxima_texto)}<div class="text-muted small">${esc(dentroDe(t.proxima))}</div>`;
+    }
+
+    function render() {
+      document.getElementById('contador').textContent = cuenta(tareas.length, 'tarea', 'tareas');
+      if (!tareas.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="7" class="text-center text-muted py-4">'
+          + 'Sin tareas programadas. Agrega una arriba para abrir incidencias periódicas.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = tareas.map((t) => `<tr>
+        <td class="ps-3">
+          <span class="fw-medium">${esc(t.nombre)}</span>
+          <div class="text-muted small">${esc(t.plantilla_titulo)}</div>
+        </td>
+        <td>
+          ${esc(describirPlan(t))}
+          ${t.activo ? '' : '<div class="text-muted small">Detenida</div>'}
+        </td>
+        <td>${proximaHtml(t)}</td>
+        <td>${esc(t.grupo_nombre)}</td>
+        <td class="col-compacta">${
+          t.local_nombre ? esc(t.local_nombre) : '<span class="text-muted">Todos los locales</span>'
+        }</td>
+        <td>${
+          t.mantenimiento_externo
+            ? esc(t.empresa_nombre || 'Externo')
+            : '<span class="text-muted">Propio personal</span>'
+        }</td>
+        ${celdaNumero(t.tickets).replace('class="num', 'class="num col-compacta')}
+        <td class="text-end pe-3 text-nowrap acciones-fila">
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-ejecutar="${t.id}">Ejecutar ahora</button>
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${t.id}">Editar</button>
+          <button class="btn btn-sm btn-link text-danger p-0" data-eliminar="${t.id}">Eliminar</button>
+        </td>
+      </tr>`).join('');
+
+      tbody.querySelectorAll('[data-editar]').forEach((b) =>
+        b.addEventListener('click', () => abrirEdicion(Number(b.dataset.editar))));
+      tbody.querySelectorAll('[data-eliminar]').forEach((b) =>
+        b.addEventListener('click', () => eliminar(Number(b.dataset.eliminar))));
+      tbody.querySelectorAll('[data-ejecutar]').forEach((b) =>
+        b.addEventListener('click', () => ejecutar(Number(b.dataset.ejecutar))));
+    }
+
+    // ---------- Alta y edición ----------
+
+    function prepararDesplegables(tarea) {
+      opciones(document.getElementById('t-grupo'), meta.grupos,
+        { placeholder: 'Elige un departamento', seleccionado: tarea ? tarea.grupo_id : null });
+      opciones(document.getElementById('t-local'), meta.locales,
+        { placeholder: 'Todos los locales', seleccionado: tarea ? tarea.local_id : null });
+      opciones(document.getElementById('t-prioridad'), comoLista(PRIORIDADES),
+        { seleccionado: tarea ? tarea.prioridad : 'normal' });
+      opciones(document.getElementById('t-empresa'), meta.empresas || [],
+        { placeholder: 'Elige una empresa', seleccionado: tarea ? tarea.empresa_id : null });
+      opciones(document.getElementById('t-area'), meta.areas || [],
+        { placeholder: 'Sin grupo', seleccionado: tarea ? tarea.area_id : null });
+      const areaId = tarea ? tarea.area_id : null;
+      opciones(document.getElementById('t-familia'), familiasDe(meta, areaId),
+        { placeholder: areaId ? 'Sin familia' : 'Elige antes un grupo', seleccionado: tarea ? tarea.familia_id : null });
+    }
+
+    // Sin mantenimiento externo, la empresa ni se enseña ni se exige.
+    function alCambiarExterno() {
+      const externo = document.getElementById('t-externo').checked;
+      document.getElementById('caja-empresa').classList.toggle('d-none', !externo);
+      document.getElementById('t-empresa').required = externo;
+    }
+
+    /**
+     * El formulario en blanco.
+     *
+     * Con una fecha se abre puesto en ese día y como tarea de una sola vez,
+     * que es lo que se quiere al llegar desde el calendario: se ha pulsado un
+     * día concreto, no «cada lunes». La pauta se puede cambiar antes de
+     * guardar, y las rejillas se marcan a partir de ese día para que ninguna
+     * quede vacía si se cambia.
+     */
+    function abrirNuevo(fechaISO = null) {
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-tarea').reset();
+      document.getElementById('t-id').value = '';
+      document.getElementById('modal-titulo').textContent = 'Agregar tarea';
+      document.getElementById('btn-guardar').textContent = 'Guardar';
+      document.getElementById('t-fecha').value = fechaISO || hoyISO();
+      document.getElementById('t-hora').value = '09:00';
+      document.getElementById(fechaISO ? 'f-una_vez' : 'f-diaria').checked = true;
+      document.getElementById('t-cada-dias').value = 1;
+      document.getElementById('t-cada-semanas').value = 1;
+      // Se empieza con el día elegido marcado en las dos rejillas, para no
+      // obligar a marcar algo antes de poder guardar.
+      const hoy = fechaISO ? fechaLocal(fechaISO) : new Date();
+      marcar('#t-dias-semana input', [hoy.getDay()]);
+      marcar('#t-dias-mes input', [hoy.getDate()]);
+      marcar('#t-meses input', MESES.map((_, i) => i + 1));
+      document.getElementById('t-externo').checked = false;
+      prepararDesplegables(null);
+      alCambiarPlan();
+      alCambiarExterno();
+      modal.show();
+    }
+
+    function abrirEdicion(id) {
+      const t = tareas.find((x) => x.id === id);
+      if (!t) return;
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-tarea').reset();
+      document.getElementById('t-id').value = t.id;
+      document.getElementById('modal-titulo').textContent = 'Editar tarea';
+      document.getElementById('btn-guardar').textContent = 'Guardar cambios';
+      document.getElementById('t-nombre').value = t.nombre;
+      document.getElementById('t-titulo').value = t.plantilla_titulo;
+      document.getElementById('t-descripcion').value = t.plantilla_descripcion || '';
+      document.getElementById('t-activo').value = t.activo ? '1' : '0';
+
+      document.getElementById('t-fecha').value = t.fecha_inicio;
+      document.getElementById('t-hora').value = t.hora;
+      document.getElementById(`f-${t.frecuencia}`).checked = true;
+      document.getElementById('t-cada-dias').value = t.frecuencia === 'diaria' ? (t.cada || 1) : 1;
+      document.getElementById('t-cada-semanas').value = t.frecuencia === 'semanal' ? (t.cada || 1) : 1;
+      marcar('#t-dias-semana input', listaDe(t.dias_semana));
+      marcar('#t-dias-mes input', listaDe(t.dias_mes));
+      // Sin meses guardados, la tarea se repite todos: se marcan los doce.
+      const meses = listaDe(t.meses);
+      marcar('#t-meses input', meses.length ? meses : MESES.map((_, i) => i + 1));
+
+      document.getElementById('t-externo').checked = Boolean(t.mantenimiento_externo);
+      prepararDesplegables(t);
+      alCambiarPlan();
+      alCambiarExterno();
+      modal.show();
+    }
+
+    async function guardar() {
+      const btn = document.getElementById('btn-guardar');
+      const id = document.getElementById('t-id').value;
+      const cuerpo = {
+        nombre: document.getElementById('t-nombre').value,
+        ...planDelFormulario(),
+        plantilla_titulo: document.getElementById('t-titulo').value,
+        plantilla_descripcion: document.getElementById('t-descripcion').value,
+        grupo_id: Number(document.getElementById('t-grupo').value) || null,
+        local_id: Number(document.getElementById('t-local').value) || null,
+        prioridad: document.getElementById('t-prioridad').value,
+        activo: document.getElementById('t-activo').value === '1',
+        mantenimiento_externo: document.getElementById('t-externo').checked,
+        empresa_id: Number(document.getElementById('t-empresa').value) || null,
+        area_id: Number(document.getElementById('t-area').value) || null,
+        familia_id: Number(document.getElementById('t-familia').value) || null
+      };
+      ocultarAlerta('modal-alert');
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON(id ? `/api/tareas/${id}` : '/api/tareas', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cuerpo)
+        });
+        modal.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('modal-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    // Lanzar la tarea abre incidencias de verdad, así que se avisa de cuántas.
+    async function ejecutar(id) {
+      const t = tareas.find((x) => x.id === id);
+      if (!t) return;
+      const cuantos = t.local_id ? 1 : meta.locales.length;
+      if (!await confirmar(
+        `¿Ejecutar «${t.nombre}» ahora? Se abrirán ${cuenta(cuantos, 'incidencia', 'incidencias')}.`,
+        { titulo: 'Ejecutar tarea', aceptar: 'Ejecutar', peligro: false })) return;
+      try {
+        await fetchJSON(`/api/tareas/${id}/ejecutar`, { method: 'POST' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function eliminar(id) {
+      const t = tareas.find((x) => x.id === id);
+      if (!t) return;
+      if (!await confirmar(
+        `¿Eliminar la tarea «${t.nombre}»? Las incidencias que ya abrió se quedan.`,
+        { titulo: 'Eliminar tarea' })) return;
+      try {
+        await fetchJSON(`/api/tareas/${id}`, { method: 'DELETE' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    document.getElementById('btn-guardar').addEventListener('click', guardar);
+    init();
+  </script>
+</body>
+</html>

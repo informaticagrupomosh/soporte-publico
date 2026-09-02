@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <div class="d-flex align-items-center justify-content-center p-3" style="min-height: 100vh">
+    <div class="card border-0 shadow-sm w-100" style="max-width: 360px">
+      <div class="card-body p-4">
+        <small class="text-muted fw-semibold text-uppercase" id="marca"></small>
+        <h4 class="fw-bold mb-3">Incidencias</h4>
+        <div id="login-alert" class="alert d-none" role="alert"></div>
+        <form id="form-login">
+          <div class="mb-3">
+            <label class="form-label" for="l-usuario">Correo o usuario</label>
+            <input type="text" class="form-control" id="l-usuario" autocomplete="username" autofocus required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label" for="l-password">Contraseña</label>
+            <input type="password" class="form-control" id="l-password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-dark w-100" id="btn-entrar">Entrar</button>
+        </form>
+
+        <!-- La otra puerta: la cuenta de Office 365 de la organización. Solo aparece si
+             el servidor tiene configurado el tenant; si no, sobra un botón que
+             no llevaría a ninguna parte. -->
+        <div class="d-none" id="caja-entra">
+          <div class="d-flex align-items-center gap-2 my-3 text-muted small">
+            <hr class="flex-grow-1 m-0">
+            <span>o</span>
+            <hr class="flex-grow-1 m-0">
+          </div>
+          <a href="/api/entra/entrar"
+             class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 23 23" aria-hidden="true">
+              <rect x="1" y="1" width="10" height="10" fill="#f25022"></rect>
+              <rect x="12" y="1" width="10" height="10" fill="#7fba00"></rect>
+              <rect x="1" y="12" width="10" height="10" fill="#00a4ef"></rect>
+              <rect x="12" y="12" width="10" height="10" fill="#ffb900"></rect>
+            </svg>
+            Entrar con Office 365
+          </a>
+        </div>
+
+        <div class="text-center mt-3">
+          <button type="button" class="btn btn-link btn-sm text-muted p-0" id="btn-olvidada">
+            He olvidado la contraseña
+          </button>
+        </div>
+
+        <div class="text-center mt-3">
+          <a href="/privacidad.html" class="link-secondary small text-decoration-none">
+            Privacidad
+          </a>
+        </div>
+
+        <!-- Pedir el correo para volver a entrar. Se queda en la misma tarjeta:
+             quien no puede entrar no debería acabar en otra pantalla. -->
+        <div class="d-none" id="caja-olvidada">
+          <hr class="my-4">
+          <h6 class="fw-semibold">Volver a entrar</h6>
+          <p class="text-muted small">
+            Escribe tu correo y te mandamos un enlace para elegir una contraseña nueva.
+          </p>
+          <div id="olvidada-alert" class="alert d-none" role="alert"></div>
+          <form id="form-olvidada">
+            <div class="mb-3">
+              <label class="form-label" for="o-usuario">Correo</label>
+              <input type="email" class="form-control" id="o-usuario" autocomplete="username" required>
+            </div>
+            <button type="submit" class="btn btn-outline-dark w-100" id="btn-enviar-enlace">
+              Enviarme el enlace
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    // Con qué nombre se presenta esta instalación. Va sin sesión: aquí todavía
+    // no ha entrado nadie.
+    cargarOrganizacion();
+    const btn = document.getElementById('btn-entrar');
+    let cuentaAtras = null;
+    let bloqueada = false;
+    let enviando = false;
+
+    // ---------- Entrar con Office 365 ----------
+
+    // Lo que haya salido mal por el camino vuelve en la dirección, porque de
+    // Microsoft se llega aquí por una redirección y no por una llamada. Se
+    // enseña y se quita de la barra: recargar no tiene por qué repetirlo.
+    const traido = new URLSearchParams(location.search).get('error');
+    if (traido) {
+      mostrarAlerta('login-alert', traido);
+      history.replaceState(null, '', location.pathname);
+    }
+
+    fetchJSON('/api/entra/estado')
+      .then((estado) => {
+        if (estado.activo) document.getElementById('caja-entra').classList.remove('d-none');
+      })
+      .catch(() => { /* sin botón: siempre queda el usuario y la contraseña */ });
+
+    // Tras varios intentos fallidos el servidor impone una espera: se muestra
+    // descontando y con el botón desactivado hasta que se cumple.
+    function esperar(segundos) {
+      clearInterval(cuentaAtras);
+      let restan = segundos;
+      const pintar = () => {
+        if (restan <= 0) {
+          clearInterval(cuentaAtras);
+          cuentaAtras = null;
+          ocultarAlerta('login-alert');
+          btn.disabled = false;
+          return;
+        }
+        const minutos = Math.floor(restan / 60);
+        const cuanto = minutos
+          ? `${minutos}:${String(restan % 60).padStart(2, '0')} min`
+          : `${restan} s`;
+        mostrarAlerta('login-alert', `Demasiados intentos fallidos. Vuelve a intentarlo en ${cuanto}.`);
+        btn.disabled = true;
+        restan -= 1;
+      };
+      pintar();
+      cuentaAtras = setInterval(pintar, 1000);
+    }
+
+    // ---------- He olvidado la contraseña ----------
+
+    document.getElementById('btn-olvidada').addEventListener('click', () => {
+      const caja = document.getElementById('caja-olvidada');
+      caja.classList.toggle('d-none');
+      if (!caja.classList.contains('d-none')) {
+        // Lo que ya haya escrito arriba sirve: no hace falta teclearlo dos veces.
+        document.getElementById('o-usuario').value = document.getElementById('l-usuario').value;
+        document.getElementById('o-usuario').focus();
+      }
+    });
+
+    document.getElementById('form-olvidada').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const boton = document.getElementById('btn-enviar-enlace');
+      const etiqueta = boton.textContent;
+      boton.disabled = true;
+      boton.textContent = 'Enviando…';
+      ocultarAlerta('olvidada-alert');
+      try {
+        const res = await fetchJSON('/api/recuperar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario: document.getElementById('o-usuario').value })
+        });
+        // El servidor contesta lo mismo exista la cuenta o no, para que nadie
+        // averigüe quién tiene cuenta probando direcciones.
+        mostrarAlerta('olvidada-alert', res.mensaje, 'success');
+        document.getElementById('form-olvidada').reset();
+      } catch (err) {
+        mostrarAlerta('olvidada-alert', err.message);
+      } finally {
+        boton.disabled = false;
+        boton.textContent = etiqueta;
+      }
+    });
+
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (btn.disabled || bloqueada) return;
+      clearInterval(cuentaAtras);
+      cuentaAtras = null;
+      ocultarAlerta('login-alert');
+      enviando = true;
+      btn.disabled = true;
+      btn.textContent = 'Entrando…';
+      try {
+        await fetchJSON('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            usuario: document.getElementById('l-usuario').value,
+            password: document.getElementById('l-password').value
+          })
+        });
+        location.href = '/';
+      } catch (err) {
+        enviando = false;
+        btn.textContent = 'Entrar';
+        const datos = err.datos || {};
+        if (datos.bloqueada) {
+          // La cuenta ya no se reactiva sola: el botón se queda desactivado.
+          bloqueada = true;
+          mostrarAlerta('login-alert', err.message);
+          return;
+        }
+        if (datos.espera) {
+          esperar(datos.espera);
+          return;
+        }
+        mostrarAlerta('login-alert', err.message);
+        btn.disabled = false;
+      }
+    });
+
+    // La espera y el bloqueo son de la cuenta, no del navegador: al escribir
+    // otro usuario se deja intentar de nuevo, y si el servidor sigue en espera
+    // o la cuenta continúa bloqueada, lo volverá a decir.
+    document.getElementById('l-usuario').addEventListener('input', () => {
+      if (enviando) return;
+      if (cuentaAtras) {
+        clearInterval(cuentaAtras);
+        cuentaAtras = null;
+      }
+      bloqueada = false;
+      ocultarAlerta('login-alert');
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>

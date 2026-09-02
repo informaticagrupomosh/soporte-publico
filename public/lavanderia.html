@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lavandería — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Lavandería</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nuevo">Nuevo envío</button>
+    </div>
+    <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-local">Local</label>
+        <select id="filtro-local" class="form-select form-select-sm" style="--ancho: 180px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-estado">Estado</label>
+        <select id="filtro-estado" class="form-select form-select-sm" style="--ancho: 170px">
+          <option value="pendiente" selected>Esperando la vuelta</option>
+          <option value="recibido">Ya contados</option>
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-desde">Desde</label>
+        <input type="date" id="filtro-desde" class="form-control form-control-sm" style="--ancho: 160px">
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-hasta">Hasta</label>
+        <input type="date" id="filtro-hasta" class="form-control form-control-sm" style="--ancho: 160px">
+      </div>
+      <span class="text-muted small ms-auto" id="contador"></span>
+    </div>
+
+    <div id="lista-envios">
+      <p class="text-center text-muted py-4">Cargando…</p>
+    </div>
+
+    <div id="caja-prendas" class="d-none mt-4">
+      <div class="d-flex align-items-center mb-2">
+        <div class="chart-title mb-0">Prendas</div>
+        <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nueva-prenda">Agregar prenda</button>
+      </div>
+      <div class="bg-white border rounded table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Nombre</th>
+              <th class="num pe-3">Envíos</th>
+              <th class="text-end pe-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="rows-prendas">
+            <tr><td colspan="3" class="text-center text-muted py-4">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alta y edición de prenda -->
+  <div class="modal fade" id="modal-prenda" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="prenda-titulo">Agregar prenda</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="prenda-alert" class="alert d-none" role="alert"></div>
+          <form id="form-prenda">
+            <input type="hidden" id="p-id">
+            <div class="mb-3">
+              <label class="form-label" for="p-nombre">Nombre</label>
+              <input type="text" class="form-control" id="p-nombre" placeholder="Nombre" required>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar-prenda">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nuevo envío -->
+  <div class="modal fade" id="modal-envio" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">Nuevo envío a lavandería</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="envio-alert" class="alert d-none" role="alert"></div>
+          <form id="form-envio">
+            <div class="mb-3">
+              <label class="form-label" for="e-local">Local</label>
+              <select class="form-select" id="e-local" required></select>
+            </div>
+            <label class="form-label">Cuántas mandas de cada una</label>
+            <div id="e-prendas" class="mb-3"></div>
+            <div class="mb-3">
+              <label class="form-label" for="e-notas">Notas <span class="text-muted">(opcional)</span></label>
+              <textarea class="form-control" id="e-notas" rows="2" placeholder="Notas"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar-envio">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registrar recepción -->
+  <div class="modal fade" id="modal-recepcion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">Contar la vuelta</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="recepcion-alert" class="alert d-none" role="alert"></div>
+          <input type="hidden" id="r-envio-id">
+          <p class="text-muted small">Cuántas han vuelto de verdad. Si faltan, la diferencia queda como merma.</p>
+          <div id="r-prendas" class="mb-3"></div>
+          <div class="mb-3">
+            <label class="form-label" for="r-notas">Notas <span class="text-muted">(opcional)</span></label>
+            <textarea class="form-control" id="r-notas" rows="2" placeholder="Notas"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar-recepcion">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let meta = null;
+    let envios = [];
+    let prendas = [];
+    const cont = document.getElementById('lista-envios');
+    const filasPrendas = document.getElementById('rows-prendas');
+    const modalEnvio = new bootstrap.Modal(document.getElementById('modal-envio'));
+    const modalRecepcion = new bootstrap.Modal(document.getElementById('modal-recepcion'));
+    const modalPrenda = new bootstrap.Modal(document.getElementById('modal-prenda'));
+
+    async function init() {
+      const sesion = await initPagina('Lavandería');
+      document.getElementById('btn-nuevo').addEventListener('click', abrirNuevo);
+      try {
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        alertaPagina(e.message);
+        return;
+      }
+      opciones(document.getElementById('filtro-local'), meta.localesPropios || [], { placeholder: 'Todos tus locales' });
+      for (const id of ['filtro-local', 'filtro-estado', 'filtro-desde', 'filtro-hasta']) {
+        document.getElementById(id).addEventListener('change', cargar);
+      }
+      cargar();
+
+      // Solo el administrador mantiene el catálogo de prendas.
+      if (sesion && sesion.rol === 'admin') {
+        document.getElementById('caja-prendas').classList.remove('d-none');
+        document.getElementById('btn-nueva-prenda').addEventListener('click', abrirNuevaPrenda);
+        cargarPrendas();
+      }
+    }
+
+    function parametros() {
+      const p = new URLSearchParams();
+      const local = document.getElementById('filtro-local').value;
+      const estado = document.getElementById('filtro-estado').value;
+      const desde = document.getElementById('filtro-desde').value;
+      const hasta = document.getElementById('filtro-hasta').value;
+      if (local) p.set('local_id', local);
+      if (estado) p.set('estado', estado);
+      // El rango es opcional: con solo una punta puesta se ignora, para no
+      // mandar una fecha sin la otra que el servidor tendría que rechazar.
+      if (desde && hasta) {
+        p.set('desde', desde);
+        p.set('hasta', hasta);
+      }
+      return p;
+    }
+
+    async function cargar() {
+      cont.innerHTML = '<p class="text-center text-muted py-4">Cargando…</p>';
+      try {
+        envios = await fetchJSON(`/api/lavanderia?${parametros()}`);
+        render();
+      } catch (e) {
+        cont.innerHTML = '<p class="text-center text-danger py-4">Error al cargar.</p>';
+        alertaPagina(e.message);
+      }
+    }
+
+    function render() {
+      document.getElementById('contador').textContent = cuenta(envios.length, 'envío', 'envíos');
+      if (!envios.length) {
+        cont.innerHTML =
+          '<p class="text-center text-muted py-4">Sin envíos todavía. Registra uno con el botón de arriba.</p>';
+        return;
+      }
+      cont.innerHTML = envios.map(tarjetaEnvio).join('');
+      cont.querySelectorAll('[data-recibir]').forEach((b) =>
+        b.addEventListener('click', () => abrirRecepcion(Number(b.dataset.recibir))));
+    }
+
+    function tarjetaEnvio(e) {
+      const pendiente = !e.recibido_en;
+      const filas = e.items.map((i) => {
+        if (pendiente) {
+          return `<tr>
+            <td>${esc(i.prenda_nombre)}</td>
+            ${celdaNumero(i.enviado)}
+            <td class="num text-muted">—</td>
+            <td class="num text-muted">—</td>
+          </tr>`;
+        }
+        const merma = i.enviado - (i.recibido || 0);
+        return `<tr>
+          <td>${esc(i.prenda_nombre)}</td>
+          ${celdaNumero(i.enviado)}
+          ${celdaNumero(i.recibido || 0)}
+          <td class="num ${merma > 0 ? 'text-danger fw-semibold' : 'text-muted'}">${merma > 0 ? merma : '—'}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+      <div class="bg-white border rounded p-3 mb-3">
+        <div class="d-flex flex-wrap align-items-start gap-2 mb-2">
+          <div>
+            <span class="fw-semibold">${esc(e.local_nombre)}</span>
+            <div class="text-muted small">
+              Enviado por ${esc(e.creado_por_nombre)} · ${fmtFechaHora(e.creado_en)}
+            </div>
+          </div>
+          <span class="badge ${pendiente ? 'text-bg-warning' : 'text-bg-success'} ms-auto">
+            ${pendiente ? 'Esperando la vuelta' : 'Contado'}
+          </span>
+          ${pendiente
+            ? `<button class="btn btn-sm btn-dark" data-recibir="${e.id}">Registrar recepción</button>` : ''}
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light">
+              <tr><th>Prenda</th><th class="num">Enviado</th><th class="num">Recibido</th><th class="num">Merma</th></tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>
+        ${e.notas ? `<div class="text-muted small mt-1">Notas del envío: ${esc(e.notas)}</div>` : ''}
+        ${!pendiente && e.notas_recepcion
+          ? `<div class="text-muted small">Notas de la recepción: ${esc(e.notas_recepcion)}</div>` : ''}
+        ${!pendiente
+          ? `<div class="text-muted small">Contado por ${esc(e.recibido_por_nombre)} · ${fmtFechaHora(e.recibido_en)}</div>`
+          : ''}
+      </div>`;
+    }
+
+    // ---------- Nuevo envío ----------
+
+    function abrirNuevo() {
+      ocultarAlerta('envio-alert');
+      document.getElementById('form-envio').reset();
+      const propios = meta.localesPropios || [];
+      opciones(document.getElementById('e-local'), propios,
+        propios.length === 1 ? { seleccionado: propios[0].id } : { placeholder: 'Elige un local' });
+      document.getElementById('e-prendas').innerHTML = (meta.prendasLavanderia || []).map((p) => `
+        <div class="row align-items-center mb-2">
+          <div class="col-8">${esc(p.nombre)}</div>
+          <div class="col-4">
+            <input type="number" class="form-control form-control-sm" min="0" placeholder="0"
+                   data-prenda="${p.id}" id="e-prenda-${p.id}">
+          </div>
+        </div>`).join('');
+      modalEnvio.show();
+    }
+
+    async function guardarEnvio() {
+      const btn = document.getElementById('btn-guardar-envio');
+      ocultarAlerta('envio-alert');
+      const items = (meta.prendasLavanderia || [])
+        .map((p) => ({
+          prenda_id: p.id,
+          enviado: Number(document.getElementById(`e-prenda-${p.id}`).value) || 0
+        }))
+        .filter((i) => i.enviado > 0);
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON('/api/lavanderia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            local_id: Number(document.getElementById('e-local').value) || null,
+            notas: document.getElementById('e-notas').value,
+            items
+          })
+        });
+        modalEnvio.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('envio-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    // ---------- Recepción ----------
+
+    function abrirRecepcion(id) {
+      const e = envios.find((x) => x.id === id);
+      if (!e) return;
+      ocultarAlerta('recepcion-alert');
+      document.getElementById('r-envio-id').value = id;
+      document.getElementById('r-notas').value = '';
+      document.getElementById('r-prendas').innerHTML = e.items.map((i) => `
+        <div class="row align-items-center mb-2">
+          <div class="col-6">${esc(i.prenda_nombre)} <span class="text-muted small">(enviado: ${i.enviado})</span></div>
+          <div class="col-6">
+            <input type="number" class="form-control form-control-sm" min="0" value="${i.enviado}"
+                   data-prenda="${i.prenda_id}" id="r-prenda-${i.prenda_id}">
+          </div>
+        </div>`).join('');
+      modalRecepcion.show();
+    }
+
+    async function guardarRecepcion() {
+      const btn = document.getElementById('btn-guardar-recepcion');
+      const id = document.getElementById('r-envio-id').value;
+      const e = envios.find((x) => x.id === Number(id));
+      ocultarAlerta('recepcion-alert');
+      const items = e.items.map((i) => ({
+        prenda_id: i.prenda_id,
+        recibido: Number(document.getElementById(`r-prenda-${i.prenda_id}`).value) || 0
+      }));
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON(`/api/lavanderia/${id}/recepcion`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notas_recepcion: document.getElementById('r-notas').value, items })
+        });
+        modalRecepcion.hide();
+        cargar();
+      } catch (e2) {
+        mostrarAlerta('recepcion-alert', e2.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    // ---------- Catálogo de prendas (admin) ----------
+
+    async function cargarPrendas() {
+      filasPrendas.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        prendas = await fetchJSON('/api/prendas-lavanderia');
+        renderPrendas();
+      } catch (e) {
+        filasPrendas.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+      }
+    }
+
+    function renderPrendas() {
+      if (!prendas.length) {
+        filasPrendas.innerHTML =
+          '<tr><td colspan="3" class="text-center text-muted py-4">Sin prendas. Agrega una arriba.</td></tr>';
+        return;
+      }
+      filasPrendas.innerHTML = prendas.map((p) => `<tr>
+        <td class="ps-3 fw-medium">${esc(p.nombre)}</td>
+        ${celdaNumero(p.usos).replace('class="num', 'class="num pe-3')}
+        <td class="text-end pe-3 text-nowrap acciones-fila">
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${p.id}">Editar</button>
+          <button class="btn btn-sm btn-link text-danger p-0" data-eliminar="${p.id}">Eliminar</button>
+        </td>
+      </tr>`).join('');
+
+      filasPrendas.querySelectorAll('[data-editar]').forEach((b) =>
+        b.addEventListener('click', () => abrirEdicionPrenda(Number(b.dataset.editar))));
+      filasPrendas.querySelectorAll('[data-eliminar]').forEach((b) =>
+        b.addEventListener('click', () => eliminarPrenda(Number(b.dataset.eliminar))));
+    }
+
+    function abrirNuevaPrenda() {
+      ocultarAlerta('prenda-alert');
+      document.getElementById('form-prenda').reset();
+      document.getElementById('p-id').value = '';
+      document.getElementById('prenda-titulo').textContent = 'Agregar prenda';
+      document.getElementById('btn-guardar-prenda').textContent = 'Guardar';
+      modalPrenda.show();
+    }
+
+    function abrirEdicionPrenda(id) {
+      const p = prendas.find((x) => x.id === id);
+      if (!p) return;
+      ocultarAlerta('prenda-alert');
+      document.getElementById('p-id').value = p.id;
+      document.getElementById('p-nombre').value = p.nombre;
+      document.getElementById('prenda-titulo').textContent = 'Editar prenda';
+      document.getElementById('btn-guardar-prenda').textContent = 'Guardar cambios';
+      modalPrenda.show();
+    }
+
+    async function guardarPrenda() {
+      const btn = document.getElementById('btn-guardar-prenda');
+      const id = document.getElementById('p-id').value;
+      ocultarAlerta('prenda-alert');
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON(id ? `/api/prendas-lavanderia/${id}` : '/api/prendas-lavanderia', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre: document.getElementById('p-nombre').value })
+        });
+        modalPrenda.hide();
+        cargarPrendas();
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        mostrarAlerta('prenda-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    async function eliminarPrenda(id) {
+      const p = prendas.find((x) => x.id === id);
+      if (!p) return;
+      if (!await confirmar(`¿Eliminar la prenda «${p.nombre}»?`, { titulo: 'Eliminar prenda' })) return;
+      try {
+        await fetchJSON(`/api/prendas-lavanderia/${id}`, { method: 'DELETE' });
+        cargarPrendas();
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    document.getElementById('btn-guardar-envio').addEventListener('click', guardarEnvio);
+    document.getElementById('btn-guardar-recepcion').addEventListener('click', guardarRecepcion);
+    document.getElementById('btn-guardar-prenda').addEventListener('click', guardarPrenda);
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Empresas — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Empresas</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto" id="btn-nuevo">Agregar empresa</button>
+    </div>
+    <div class="bg-white border rounded table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nombre</th>
+            <th>Contacto</th>
+            <th>Teléfono</th>
+            <th>Correo</th>
+            <th class="num">Tareas</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modal-empresa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="modal-titulo">Agregar empresa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert d-none" role="alert"></div>
+          <form id="form-empresa">
+            <input type="hidden" id="e-id">
+            <div class="mb-3">
+              <label class="form-label" for="e-nombre">Nombre</label>
+              <input type="text" class="form-control" id="e-nombre" placeholder="Nombre" required>
+              <div class="form-text">La empresa con la que hay contrato de mantenimiento externo.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="e-contacto">Contacto</label>
+              <input type="text" class="form-control" id="e-contacto" placeholder="Contacto">
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="e-telefono">Teléfono</label>
+                <input type="text" class="form-control" id="e-telefono" placeholder="Teléfono">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="e-email">Correo</label>
+                <input type="email" class="form-control" id="e-email" placeholder="Correo">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="e-notas">Notas</label>
+              <textarea class="form-control" id="e-notas" rows="3" placeholder="Notas"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let empresas = [];
+    const tbody = document.getElementById('rows');
+    const modal = new bootstrap.Modal(document.getElementById('modal-empresa'));
+
+    async function init() {
+      await initPagina('Empresas');
+      document.getElementById('btn-nuevo').addEventListener('click', abrirNuevo);
+      cargar();
+    }
+
+    async function cargar() {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Cargando…</td></tr>';
+      try {
+        empresas = await fetchJSON('/api/empresas');
+        render();
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    function render() {
+      if (!empresas.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" class="text-center text-muted py-4">Sin empresas. Agrega una arriba.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = empresas.map((e) => `<tr>
+        <td class="ps-3 fw-medium">${esc(e.nombre)}</td>
+        <td class="text-muted">${esc(e.contacto || '')}</td>
+        <td class="text-muted">${esc(e.telefono || '')}</td>
+        <td class="text-muted">${esc(e.email || '')}</td>
+        ${celdaNumero(e.tareas)}
+        <td class="text-end pe-3 text-nowrap acciones-fila">
+          <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${e.id}">Editar</button>
+          <button class="btn btn-sm btn-link text-danger p-0" data-eliminar="${e.id}">Eliminar</button>
+        </td>
+      </tr>`).join('');
+
+      tbody.querySelectorAll('[data-editar]').forEach((b) =>
+        b.addEventListener('click', () => abrirEdicion(Number(b.dataset.editar))));
+      tbody.querySelectorAll('[data-eliminar]').forEach((b) =>
+        b.addEventListener('click', () => eliminar(Number(b.dataset.eliminar))));
+    }
+
+    function abrirNuevo() {
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-empresa').reset();
+      document.getElementById('e-id').value = '';
+      document.getElementById('modal-titulo').textContent = 'Agregar empresa';
+      document.getElementById('btn-guardar').textContent = 'Guardar';
+      modal.show();
+    }
+
+    function abrirEdicion(id) {
+      const e = empresas.find((x) => x.id === id);
+      if (!e) return;
+      ocultarAlerta('modal-alert');
+      document.getElementById('e-id').value = e.id;
+      document.getElementById('e-nombre').value = e.nombre;
+      document.getElementById('e-contacto').value = e.contacto || '';
+      document.getElementById('e-telefono').value = e.telefono || '';
+      document.getElementById('e-email').value = e.email || '';
+      document.getElementById('e-notas').value = e.notas || '';
+      document.getElementById('modal-titulo').textContent = 'Editar empresa';
+      document.getElementById('btn-guardar').textContent = 'Guardar cambios';
+      modal.show();
+    }
+
+    async function guardar() {
+      const btn = document.getElementById('btn-guardar');
+      const id = document.getElementById('e-id').value;
+      ocultarAlerta('modal-alert');
+      const etiqueta = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      try {
+        await fetchJSON(id ? `/api/empresas/${id}` : '/api/empresas', {
+          method: id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: document.getElementById('e-nombre').value,
+            contacto: document.getElementById('e-contacto').value,
+            telefono: document.getElementById('e-telefono').value,
+            email: document.getElementById('e-email').value,
+            notas: document.getElementById('e-notas').value
+          })
+        });
+        modal.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('modal-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = etiqueta;
+      }
+    }
+
+    async function eliminar(id) {
+      const e = empresas.find((x) => x.id === id);
+      if (!e) return;
+      if (!await confirmar(`¿Eliminar la empresa «${e.nombre}»?`, { titulo: 'Eliminar empresa' })) return;
+      try {
+        await fetchJSON(`/api/empresas/${id}`, { method: 'DELETE' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    document.getElementById('btn-guardar').addEventListener('click', guardar);
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendario — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    /* ---------- Vista de año: doce minicalendarios ---------- */
+    .mini-mes { cursor: pointer; transition: box-shadow .15s ease; }
+    .mini-mes:hover { box-shadow: 0 0 0 2px var(--bs-dark) inset; }
+    .mini-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center;
+    }
+    .mini-grid .mini-cab { font-size: 10px; color: var(--bs-gray-500); padding-bottom: 2px; }
+    .mini-dia {
+      position: relative; font-size: 11.5px; padding: 3px 0; border-radius: 4px; color: var(--bs-gray-700);
+    }
+    .mini-dia.con-tarea { font-weight: 600; color: var(--bs-dark); }
+    .mini-dia .mini-punto {
+      position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+      width: 4px; height: 4px; border-radius: 50%; background: var(--bs-primary);
+    }
+
+    /* ---------- Vista de mes: agenda completa ---------- */
+    .mes-cabecera-dias {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      font-size: 12.5px; color: var(--bs-gray-600); text-align: center; font-weight: 600;
+    }
+    .mes-cabecera-dias > div { padding: 6px 0; }
+    .mes-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(96px, auto);
+      gap: 1px; background: var(--bs-border-color);
+      border: 1px solid var(--bs-border-color); border-radius: .375rem; overflow: hidden;
+    }
+    .mes-dia { background: #fff; padding: 5px; min-width: 0; }
+    .mes-dia[data-abrir-dia] { cursor: pointer; }
+    .mes-dia[data-abrir-dia]:hover { background: var(--bs-gray-100); }
+    .mes-dia.fuera-de-mes { background: var(--bs-gray-100); }
+    .mes-dia.hoy { background: #fff8e6; }
+    .mes-dia-numero { font-size: 12px; color: var(--bs-gray-600); margin-bottom: 2px; }
+    .mes-dia.hoy .mes-dia-numero {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%; background: var(--bs-dark); color: #fff;
+    }
+    .mes-dia.fuera-de-mes .mes-dia-numero { color: var(--bs-gray-400); }
+    .evento {
+      display: block; width: 100%; border: 0; text-align: left; background: var(--bs-primary-bg-subtle);
+      color: var(--bs-primary-text-emphasis); border-radius: 4px; padding: 1px 5px; margin-bottom: 2px;
+      font-size: 11px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .evento.externo { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+    .evento.cerrada { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+    .evento.atrasada { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+    .etiqueta-atrasada {
+      display: inline-block; font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .3px; margin-left: 3px;
+    }
+    .evento-mas {
+      border: 0; background: none; font-size: 11px; color: var(--bs-gray-600); padding: 0 5px;
+    }
+    .evento-mas:hover, .evento:hover { text-decoration: underline; }
+  </style>
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container-fluid py-4 px-3 px-md-4">
+    <div id="alert-area"></div>
+
+    <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-area">Grupo</label>
+        <select id="filtro-area" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-familia">Familia</label>
+        <select id="filtro-familia" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-mantenimiento">Mantenimiento</label>
+        <select id="filtro-mantenimiento" class="form-select form-select-sm" style="--ancho: 160px">
+          <option value="">Todos</option>
+          <option value="1">Externo</option>
+          <option value="0">Propio personal</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-empresa">Empresa</label>
+        <select id="filtro-empresa" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <button type="button" class="btn btn-light btn-sm d-none" id="btn-anio">← Año</button>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-outline-secondary" id="btn-anterior">‹</button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-siguiente">›</button>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-hoy">Hoy</button>
+      <div class="chart-title mb-0 ms-1" id="titulo-periodo"></div>
+      <span class="text-muted small ms-auto" id="contador"></span>
+    </div>
+
+    <div id="vista-anio" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3"></div>
+
+    <div id="vista-mes" class="d-none">
+      <div class="mes-cabecera-dias" id="mes-cabecera"></div>
+      <div class="mes-grid" id="mes-grid"></div>
+    </div>
+  </div>
+
+  <!-- Detalle del día -->
+  <div class="modal fade" id="modal-dia" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="dia-titulo">Tareas del día</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="dia-cuerpo"></div>
+        <div class="modal-footer border-0 pt-0" id="dia-pie"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let meta = null;
+    let vista = 'mes';
+    const hoy = new Date();
+    let anio = hoy.getFullYear();
+    let mes = hoy.getMonth() + 1;
+    let datosAnio = null;
+    let datosMes = null;
+    const modalDia = new bootstrap.Modal(document.getElementById('modal-dia'));
+
+    // Solo quien lleva el programador puede crear tareas: la ruta que las
+    // guarda es `soloProgramador`. Enseñar el botón a un técnico sería
+    // ofrecerle algo que el servidor le va a negar.
+    const PROGRAMAN = ['admin', 'gestor'];
+    let puedeProgramar = false;
+
+    async function init() {
+      const sesion = await initPagina('Calendario');
+      puedeProgramar = !!sesion && PROGRAMAN.includes(sesion.rol);
+      try {
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        alertaPagina(e.message);
+        return;
+      }
+      opciones(document.getElementById('filtro-area'), meta.areas || [], { placeholder: 'Todos los grupos' });
+      opciones(document.getElementById('filtro-familia'), meta.familias || [], { placeholder: 'Todas las familias' });
+      opciones(document.getElementById('filtro-empresa'), meta.empresas || [], { placeholder: 'Todas las empresas' });
+
+      document.getElementById('filtro-area').addEventListener('change', (e) => {
+        const areaId = Number(e.target.value) || null;
+        opciones(document.getElementById('filtro-familia'), areaId ? familiasDe(meta, areaId) : (meta.familias || []),
+          { placeholder: 'Todas las familias' });
+        cargar();
+      });
+      for (const id of ['filtro-familia', 'filtro-mantenimiento', 'filtro-empresa']) {
+        document.getElementById(id).addEventListener('change', cargar);
+      }
+
+      document.getElementById('btn-anio').addEventListener('click', () => { vista = 'anio'; cargar(); });
+      document.getElementById('btn-anterior').addEventListener('click', anterior);
+      document.getElementById('btn-siguiente').addEventListener('click', siguiente);
+      document.getElementById('btn-hoy').addEventListener('click', () => {
+        anio = hoy.getFullYear();
+        mes = hoy.getMonth() + 1;
+        cargar();
+      });
+
+      cargar();
+    }
+
+    function anterior() {
+      if (vista === 'anio') { anio -= 1; } else if (--mes < 1) { mes = 12; anio -= 1; }
+      cargar();
+    }
+
+    function siguiente() {
+      if (vista === 'anio') { anio += 1; } else if (++mes > 12) { mes = 1; anio += 1; }
+      cargar();
+    }
+
+    function parametrosFiltro() {
+      const p = new URLSearchParams();
+      for (const [clave, id] of [
+        ['area_id', 'filtro-area'], ['familia_id', 'filtro-familia'],
+        ['mantenimiento_externo', 'filtro-mantenimiento'], ['empresa_id', 'filtro-empresa']
+      ]) {
+        const valor = document.getElementById(id).value;
+        if (valor) p.set(clave, valor);
+      }
+      return p;
+    }
+
+    async function cargar() {
+      document.getElementById('btn-anio').classList.toggle('d-none', vista !== 'mes');
+      document.getElementById('vista-anio').classList.toggle('d-none', vista !== 'anio');
+      document.getElementById('vista-mes').classList.toggle('d-none', vista !== 'mes');
+      document.getElementById('titulo-periodo').textContent =
+        vista === 'anio' ? String(anio) : `${MESES[mes - 1]} ${anio}`;
+
+      const p = parametrosFiltro();
+      p.set('anio', anio);
+      if (vista === 'mes') p.set('mes', mes);
+
+      try {
+        const datos = await fetchJSON(`/api/calendario?${p}`);
+        if (vista === 'anio') {
+          datosAnio = datos;
+          renderAnio(datos);
+        } else {
+          datosMes = datos;
+          renderMes(datos);
+        }
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    // Lunes = 0 ... domingo = 6, para que la rejilla empiece la semana en lunes.
+    function diaSemanaLunes0(fecha) {
+      return (fecha.getDay() + 6) % 7;
+    }
+
+    function diasEnMes(anio, mesNum) {
+      return new Date(anio, mesNum, 0).getDate();
+    }
+
+    // ---------- Vista de año ----------
+
+    function renderAnio(datos) {
+      const total = datos.meses.reduce((s, m) => s + m.tareas, 0);
+      document.getElementById('contador').textContent = total
+        ? `${cuenta(total, 'tarea programada', 'tareas programadas')} en el año`
+        : 'Sin tareas programadas este año.';
+
+      const cont = document.getElementById('vista-anio');
+      cont.innerHTML = datos.meses.map((m) => miniMes(m)).join('');
+      cont.querySelectorAll('[data-mes]').forEach((el) =>
+        el.addEventListener('click', () => {
+          vista = 'mes';
+          mes = Number(el.dataset.mes);
+          cargar();
+        }));
+    }
+
+    function miniMes(m) {
+      const total = diasEnMes(anio, m.mes);
+      const diasSet = new Set(m.dias);
+      const offset = diaSemanaLunes0(new Date(anio, m.mes - 1, 1));
+      let celdas = '';
+      for (let i = 0; i < offset; i += 1) celdas += '<div></div>';
+      for (let d = 1; d <= total; d += 1) {
+        const esHoy = anio === hoy.getFullYear() && m.mes === hoy.getMonth() + 1 && d === hoy.getDate();
+        celdas += `<div class="mini-dia ${diasSet.has(d) ? 'con-tarea' : ''} ${esHoy ? 'fw-bold text-primary' : ''}">
+          ${d}${diasSet.has(d) ? '<span class="mini-punto"></span>' : ''}
+        </div>`;
+      }
+      return `
+        <div class="col">
+          <div class="bg-white border rounded p-3 h-100 mini-mes" data-mes="${m.mes}">
+            <div class="d-flex align-items-center mb-2">
+              <span class="fw-semibold">${MESES[m.mes - 1]}</span>
+              ${m.tareas ? `<span class="badge text-bg-light ms-auto">${m.tareas}</span>` : ''}
+            </div>
+            <div class="mini-grid">
+              ${DIAS_SEMANA.map((d) => `<div class="mini-cab">${d.corto[0]}</div>`).join('')}
+              ${celdas}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ---------- Vista de mes ----------
+
+    function renderMes(datos) {
+      const dias = datos.dias || {};
+      const totalEventos = Object.values(dias).reduce((s, l) => s + l.length, 0);
+      document.getElementById('contador').textContent = totalEventos
+        ? cuenta(totalEventos, 'tarea este mes', 'tareas este mes')
+        : 'Sin tareas programadas este mes.';
+
+      document.getElementById('mes-cabecera').innerHTML =
+        DIAS_SEMANA.map((d) => `<div>${d.corto}</div>`).join('');
+
+      const total = diasEnMes(anio, mes);
+      const offset = diaSemanaLunes0(new Date(anio, mes - 1, 1));
+      const grid = document.getElementById('mes-grid');
+      let html = '';
+
+      // Días del mes anterior, para no dejar la primera semana coja.
+      const mesAnteriorDias = diasEnMes(mes === 1 ? anio - 1 : anio, mes === 1 ? 12 : mes - 1);
+      for (let i = 0; i < offset; i += 1) {
+        html += celdaDia(mesAnteriorDias - offset + i + 1, [], { fueraDeMes: true });
+      }
+      for (let d = 1; d <= total; d += 1) {
+        const esHoy = anio === hoy.getFullYear() && mes === hoy.getMonth() + 1 && d === hoy.getDate();
+        html += celdaDia(d, dias[d] || [], { hoy: esHoy, propio: d });
+      }
+      // Completa la última semana con los primeros días del mes siguiente.
+      const restantes = (7 - ((offset + total) % 7)) % 7;
+      for (let d = 1; d <= restantes; d += 1) html += celdaDia(d, [], { fueraDeMes: true });
+
+      grid.innerHTML = html;
+      grid.querySelectorAll('[data-abrir-dia]').forEach((el) => {
+        const abrir = (ev) => {
+          // Los botones de los eventos están dentro de la celda, que también
+          // escucha: sin esto la ficha se abriría dos veces.
+          ev.stopPropagation();
+          abrirDia(Number(el.dataset.abrirDia), dias[el.dataset.abrirDia] || []);
+        };
+        el.addEventListener('click', abrir);
+        // Un `div` con role="button" no responde solo a la tecla: hay que
+        // escribirlo, o el día queda accesible con el tabulador y muerto.
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            abrir(ev);
+          }
+        });
+      });
+    }
+
+    function celdaDia(numero, eventos, { fueraDeMes = false, hoy: esHoy = false, propio = null } = {}) {
+      const MAX_VISIBLES = 3;
+      const visibles = eventos.slice(0, MAX_VISIBLES);
+      const ocultos = eventos.length - visibles.length;
+      const clases = ['mes-dia'];
+      if (fueraDeMes) clases.push('fuera-de-mes');
+      if (esHoy) clases.push('hoy');
+      // El día entero abre su ficha, tenga tareas o no: un día vacío es
+      // justamente donde se quiere programar algo. Los días de relleno del mes
+      // de al lado no, que pertenecen a otro mes del que aquí no hay datos.
+      return `
+        <div class="${clases.join(' ')}" ${fueraDeMes ? '' : `data-abrir-dia="${propio}" role="button" tabindex="0"`}>
+          <div class="mes-dia-numero">${numero}</div>
+          ${!fueraDeMes ? visibles.map((e) => eventoHtml(e, propio)).join('') : ''}
+          ${!fueraDeMes && ocultos > 0
+            ? `<button type="button" class="evento-mas" data-abrir-dia="${propio}">+${ocultos} más</button>` : ''}
+        </div>`;
+    }
+
+    // El estado manda sobre si es interno o externo: una tarea cerrada o
+    // atrasada tiene que verse así aunque además sea de mantenimiento externo.
+    function claseEvento(e) {
+      if (e.estado === 'cerrada') return 'cerrada';
+      if (e.estado === 'atrasada') return 'atrasada';
+      return e.mantenimiento_externo ? 'externo' : '';
+    }
+
+    function eventoHtml(e, dia) {
+      return `<button type="button" class="evento ${claseEvento(e)}" data-abrir-dia="${dia}" title="${esc(e.plantilla_titulo)}">
+        ${e.estado === 'cerrada' ? '✓ ' : ''}${esc(e.hora)} ${esc(e.nombre)}
+        ${e.estado === 'atrasada' ? '<span class="etiqueta-atrasada">Atrasada</span>' : ''}
+      </button>`;
+    }
+
+    const BADGE_ESTADO = {
+      cerrada: { clase: 'text-bg-success', texto: 'Cerrada' },
+      atrasada: { clase: 'text-bg-danger', texto: 'Atrasada' },
+      pendiente: { clase: 'text-bg-warning', texto: 'Pendiente hoy' },
+      programada: { clase: 'text-bg-light', texto: 'Programada' }
+    };
+
+    const dos = (n) => String(n).padStart(2, '0');
+
+    function abrirDia(dia, eventos) {
+      document.getElementById('dia-titulo').textContent = `${dia} de ${MESES[mes - 1]}, ${anio}`;
+
+      // Programar en este día: lleva al formulario de siempre, ya puesto en la
+      // fecha. Duplicarlo aquí serían dos formularios que mantener y que se
+      // separarían a la primera.
+      const pie = document.getElementById('dia-pie');
+      pie.innerHTML = puedeProgramar
+        ? `<a class="btn btn-dark w-100" href="/tareas.html?fecha=${anio}-${dos(mes)}-${dos(dia)}">
+             Programar una tarea este día
+           </a>`
+        : '';
+
+      const cuerpo = document.getElementById('dia-cuerpo');
+      if (!eventos.length) {
+        cuerpo.innerHTML = '<p class="text-muted mb-0">Sin tareas programadas este día.</p>';
+      } else {
+        cuerpo.innerHTML = eventos.map((e) => {
+          const badge = BADGE_ESTADO[e.estado] || BADGE_ESTADO.programada;
+          return `
+          <div class="border rounded p-2 mb-2">
+            <div class="d-flex align-items-start">
+              <div>
+                <div class="fw-semibold">${esc(e.hora)} — ${esc(e.nombre)}</div>
+                <div class="text-muted small">${esc(e.plantilla_titulo)}</div>
+              </div>
+              <span class="badge ${badge.clase} ms-auto">${badge.texto}</span>
+            </div>
+            <div class="d-flex flex-wrap gap-1 mt-2">
+              ${e.area_nombre ? `<span class="badge text-bg-light">${esc(e.area_nombre)}</span>` : ''}
+              ${e.familia_nombre ? `<span class="badge text-bg-light">${esc(e.familia_nombre)}</span>` : ''}
+              ${e.local_nombre ? `<span class="badge text-bg-light">${esc(e.local_nombre)}</span>` : ''}
+              ${e.mantenimiento_externo
+                ? `<span class="badge text-bg-warning">${esc(e.empresa_nombre || 'Externo')}</span>`
+                : '<span class="badge text-bg-light">Propio personal</span>'}
+            </div>
+          </div>`;
+        }).join('');
+      }
+      modalDia.show();
+    }
+
+    init();
+  </script>
+</body>
+</html>

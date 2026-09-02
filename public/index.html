@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container-fluid py-4 px-3 px-md-4">
+    <div id="alert-area"></div>
+    <div class="alert alert-dark d-none py-2" id="aviso-nuevas" role="status"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Incidencias</div>
+      <button type="button" class="btn btn-dark btn-sm ms-auto d-none" id="btn-nuevo">Abrir incidencia</button>
+    </div>
+    <div class="filtros d-flex flex-wrap align-items-end gap-3 mb-3">
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-grupo">Departamento</label>
+        <select id="filtro-grupo" class="form-select form-select-sm" style="--ancho: 180px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-local">Local</label>
+        <select id="filtro-local" class="form-select form-select-sm" style="--ancho: 180px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-area">Grupo</label>
+        <select id="filtro-area" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-familia">Familia</label>
+        <select id="filtro-familia" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-subfamilia">Subfamilia</label>
+        <select id="filtro-subfamilia" class="form-select form-select-sm" style="--ancho: 170px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-estado">Estado</label>
+        <select id="filtro-estado" class="form-select form-select-sm" style="--ancho: 175px"></select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-prioridad">Prioridad</label>
+        <select id="filtro-prioridad" class="form-select form-select-sm" style="--ancho: 205px"></select>
+      </div>
+      <div id="caja-asignado" class="d-none">
+        <label class="form-label mb-1 small text-muted" for="filtro-asignado">Asignación</label>
+        <select id="filtro-asignado" class="form-select form-select-sm" style="--ancho: 170px">
+          <option value="">Todas</option>
+          <option value="mias">Asignadas a mí</option>
+          <option value="sin_asignar">Sin asignar</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1 small text-muted" for="filtro-texto">Buscar</label>
+        <input type="search" id="filtro-texto" class="form-control form-control-sm" style="--ancho: 240px"
+               placeholder="Título, local, persona…" autocomplete="off">
+      </div>
+      <span class="text-muted small ms-auto" id="contador"></span>
+    </div>
+
+    <div class="bg-white border rounded table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3 col-orden" data-campo="id">Nº</th>
+            <th class="col-orden col-titulo" data-campo="titulo">Incidencia</th>
+            <th class="col-orden col-compacta" data-campo="grupo_nombre">Departamento</th>
+            <th class="col-orden" data-campo="estado">Estado</th>
+            <th class="col-orden" data-campo="prioridad">Prioridad</th>
+            <th class="col-orden col-compacta" data-campo="asignado_nombre">Asignada a</th>
+            <th class="col-orden col-compacta" data-campo="creador_nombre">Abierta por</th>
+            <th class="col-orden col-compacta" data-campo="actualizado_en">Actualizada</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="9" class="text-center text-muted py-4">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Las cerradas no estorban el trabajo del día: van aparte y plegadas. -->
+    <div class="mt-4" id="caja-completados" hidden>
+      <button type="button" class="plegable mb-2" id="btn-completados"
+              aria-expanded="false" aria-controls="panel-completados">
+        <span id="flecha-completados">▸</span>
+        <span id="titulo-completados">Completados</span>
+      </button>
+      <div class="bg-white border rounded table-responsive d-none" id="panel-completados">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Nº</th>
+              <th class="col-titulo">Incidencia</th>
+              <th class="col-compacta">Departamento</th>
+              <th class="col-compacta">Resuelta por</th>
+              <th>Cerrada</th>
+              <th class="text-end pe-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="rows-completados"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alta de incidencia -->
+  <div class="modal fade" id="modal-ticket" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">Abrir incidencia</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-alert" class="alert d-none" role="alert"></div>
+          <form id="form-ticket">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-grupo">Departamento</label>
+                <select class="form-select" id="t-grupo" required></select>
+                <div class="form-text">Quién tiene que resolverla.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-local">Local</label>
+                <select class="form-select" id="t-local" required></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-area">Grupo</label>
+                <select class="form-select" id="t-area" required></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-familia">Familia</label>
+                <select class="form-select" id="t-familia" required></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-subfamilia">
+                  Subfamilia <span class="text-muted">(opcional)</span>
+                </label>
+                <select class="form-select" id="t-subfamilia"></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-activo">
+                  Activo del inventario <span class="text-muted">(opcional)</span>
+                </label>
+                <select class="form-select" id="t-activo"></select>
+                <div class="form-text">Si la incidencia es sobre un equipo del inventario, elígelo aquí.</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 mb-3">
+                <label class="form-label" for="t-titulo">Título</label>
+                <input type="text" class="form-control" id="t-titulo"
+                       placeholder="Título" required>
+              </div>
+              <div class="col-12 mb-3">
+                <label class="form-label" for="t-descripcion">
+                  Descripción <span class="text-muted">(opcional)</span>
+                </label>
+                <textarea class="form-control" id="t-descripcion" rows="4"
+                          placeholder="Descripción"></textarea>
+              </div>
+            </div>
+            <div class="row d-none" id="caja-en-nombre">
+              <div class="col-12 mb-3">
+                <label class="form-label" for="t-en-nombre">
+                  A nombre de <span class="text-muted">(opcional)</span>
+                </label>
+                <select class="form-select" id="t-en-nombre"></select>
+                <div class="form-text">
+                  Para cuando alguien te cuenta una avería y la abres tú: la incidencia
+                  queda a su nombre y los avisos le llegan a él. En blanco, va a tu nombre.
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-prioridad">Prioridad</label>
+                <select class="form-select" id="t-prioridad"></select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="t-adjunto">
+                  Adjunto <span class="text-muted">(opcional)</span>
+                </label>
+                <input type="file" class="form-control" id="t-adjunto"
+                       accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                <div class="form-text">Foto, vídeo o documento. Los vídeos se comprimen antes de subirlos.</div>
+              </div>
+            </div>
+          </form>
+          <div class="progreso d-none" id="progreso-alta">
+            <div class="barra-progreso"><span></span></div>
+            <div class="progreso-texto text-muted small"></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-dark" id="btn-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let sesion = null;
+    let meta = null;
+    let tickets = [];
+    let orden = null;
+    // Identificadores ya vistos, para saber cuáles son nuevas al refrescar.
+    let conocidas = null;
+    const TITULO = document.title;
+    const tbody = document.getElementById('rows');
+    const modal = new bootstrap.Modal(document.getElementById('modal-ticket'));
+
+    async function init() {
+      sesion = await initPagina('Incidencias');
+      if (!sesion) return;
+      try {
+        meta = await fetchJSON('/api/meta');
+      } catch (e) {
+        alertaPagina(e.message);
+        return;
+      }
+
+      // El botón principal solo aparece si esta persona abre incidencias.
+      if (meta.puedeCrear) {
+        const boton = document.getElementById('btn-nuevo');
+        boton.classList.remove('d-none');
+        boton.addEventListener('click', abrirNuevo);
+      }
+      // Elegir el departamento o el local recorta los activos del inventario a
+      // los suyos: el activo está en un local concreto, así que hace falta
+      // tener los dos para ofrecer alguno.
+      document.getElementById('t-grupo').addEventListener('change', actualizarActivos);
+      document.getElementById('t-local').addEventListener('change', actualizarActivos);
+      // Elegir el grupo recorta las familias a las que son suyas, y elegir la
+      // familia recorta a su vez las subfamilias a las que son suyas.
+      document.getElementById('t-area').addEventListener('change', (e) => {
+        const areaId = Number(e.target.value) || null;
+        opciones(document.getElementById('t-familia'), familiasDe(meta, areaId),
+          { placeholder: areaId ? 'Elige una familia' : 'Elige antes un grupo' });
+        opciones(document.getElementById('t-subfamilia'), [], { placeholder: 'Elige antes una familia' });
+      });
+      document.getElementById('t-familia').addEventListener('change', (e) => {
+        const familiaId = Number(e.target.value) || null;
+        opciones(document.getElementById('t-subfamilia'), subfamiliasDe(meta, familiaId),
+          { placeholder: familiaId ? 'Sin subfamilia' : 'Elige antes una familia' });
+      });
+      // La asignación solo le importa a quien atiende incidencias.
+      if (sesion.rol !== 'empleado') document.getElementById('caja-asignado').classList.remove('d-none');
+
+      // Un técnico solo ve incidencias de su departamento: ofrecerle el resto en el
+      // filtro solo serviría para dejar la lista vacía sin explicar por qué.
+      const gruposVisibles = sesion.rol === 'tecnico'
+        ? meta.grupos.filter((g) => g.id === sesion.grupo_id)
+        : meta.grupos;
+      opciones(document.getElementById('filtro-grupo'), gruposVisibles,
+        { placeholder: sesion.rol === 'tecnico' ? null : 'Todos los departamentos' });
+      document.getElementById('filtro-grupo').disabled = sesion.rol === 'tecnico';
+      opciones(document.getElementById('filtro-local'), meta.locales, { placeholder: 'Todos los locales' });
+      opciones(document.getElementById('filtro-area'), meta.areas || [], { placeholder: 'Todos los grupos' });
+      opciones(document.getElementById('filtro-familia'), meta.familias || [], { placeholder: 'Todas las familias' });
+      opciones(document.getElementById('filtro-subfamilia'), [], { placeholder: 'Todas las subfamilias' });
+      opciones(document.getElementById('filtro-estado'), comoLista(ESTADOS), { placeholder: 'Todos los estados' });
+      opciones(document.getElementById('filtro-prioridad'), comoLista(PRIORIDADES), { placeholder: 'Todas las prioridades' });
+
+      // Elegir el grupo recorta las familias del filtro a las suyas.
+      document.getElementById('filtro-area').addEventListener('change', (e) => {
+        const areaId = Number(e.target.value) || null;
+        opciones(document.getElementById('filtro-familia'), areaId ? familiasDe(meta, areaId) : (meta.familias || []),
+          { placeholder: 'Todas las familias' });
+        opciones(document.getElementById('filtro-subfamilia'), [], { placeholder: 'Todas las subfamilias' });
+        cargar();
+      });
+
+      // Elegir la familia recorta las subfamilias del filtro a las suyas.
+      document.getElementById('filtro-familia').addEventListener('change', (e) => {
+        const familiaId = Number(e.target.value) || null;
+        opciones(document.getElementById('filtro-subfamilia'), subfamiliasDe(meta, familiaId),
+          { placeholder: 'Todas las subfamilias' });
+        cargar();
+      });
+
+      for (const id of [
+        'filtro-grupo', 'filtro-local', 'filtro-subfamilia',
+        'filtro-estado', 'filtro-prioridad', 'filtro-asignado'
+      ]) {
+        document.getElementById(id).addEventListener('change', cargar);
+      }
+
+      // El buscador espera a que se deje de escribir, y también busca con Enter.
+      let espera = null;
+      const texto = document.getElementById('filtro-texto');
+      texto.addEventListener('input', () => {
+        clearTimeout(espera);
+        espera = setTimeout(cargar, 300);
+      });
+      texto.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { clearTimeout(espera); cargar(); }
+      });
+
+      document.querySelectorAll('.col-orden').forEach((th) => th.addEventListener('click', () => ordenarPor(th.dataset.campo)));
+      document.getElementById('btn-completados').addEventListener('click', alternarCompletados);
+
+      await cargar();
+      // A partir de aquí la lista se mantiene sola: quien atiende incidencias
+      // tiene la pantalla abierta toda la jornada y no debería tener que
+      // recargarla para enterarse de que ha entrado una.
+      conocidas = new Set(tickets.map((t) => t.id));
+      setInterval(() => cargar({ silencioso: true }), 20000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        document.title = TITULO;
+        cargar({ silencioso: true });
+      });
+    }
+
+    function parametros() {
+      const p = new URLSearchParams();
+      for (const [clave, id] of [['grupo_id', 'filtro-grupo'], ['local_id', 'filtro-local'],
+        ['area_id', 'filtro-area'], ['familia_id', 'filtro-familia'], ['subfamilia_id', 'filtro-subfamilia'],
+        ['estado', 'filtro-estado'], ['prioridad', 'filtro-prioridad'], ['asignado', 'filtro-asignado']]) {
+        const valor = document.getElementById(id).value;
+        if (valor) p.set(clave, valor);
+      }
+      const q = document.getElementById('filtro-texto').value.trim();
+      if (q) p.set('q', q);
+      return p;
+    }
+
+    /**
+     * Trae la lista. El refresco de fondo es «silencioso»: ni enseña
+     * «Cargando…» ni molesta con un error si la red falla un momento, pero sí
+     * avisa cuando ha entrado alguna incidencia que antes no estaba.
+     */
+    async function cargar({ silencioso = false } = {}) {
+      if (!silencioso) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Cargando…</td></tr>';
+      }
+      try {
+        const recibidas = await fetchJSON(`/api/tickets?${parametros()}`);
+        const nuevas = silencioso ? recibidas.filter((t) => !conocidas.has(t.id)) : [];
+        tickets = recibidas;
+        if (conocidas) conocidas = new Set(recibidas.map((t) => t.id));
+        render();
+        if (nuevas.length) avisarDeNuevas(nuevas);
+      } catch (e) {
+        if (silencioso) return;
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Error al cargar.</td></tr>';
+        alertaPagina(e.message);
+      }
+    }
+
+    // Suena una vez, aunque hayan entrado varias a la vez, y se dice cuáles en
+    // el título de la pestaña por si está en segundo plano.
+    function avisarDeNuevas(nuevas) {
+      sonarAviso();
+      const aviso = document.getElementById('aviso-nuevas');
+      aviso.textContent = nuevas.length === 1
+        ? `Nueva incidencia: ${nuevas[0].titulo}`
+        : `${cuenta(nuevas.length, 'incidencia nueva', 'incidencias nuevas')}`;
+      aviso.classList.remove('d-none');
+      clearTimeout(aviso.dataset.temporizador);
+      aviso.dataset.temporizador = setTimeout(() => aviso.classList.add('d-none'), 12000);
+      if (document.hidden) document.title = `(${nuevas.length}) ${TITULO}`;
+    }
+
+    // ---------- Orden ----------
+
+    function ordenarPor(campo) {
+      if (orden && orden.campo === campo) orden.descendente = !orden.descendente;
+      else orden = { campo, descendente: true };
+      render();
+    }
+
+    function ordenar(filas) {
+      if (!orden) return filas;
+      const { campo, descendente } = orden;
+      const signo = descendente ? -1 : 1;
+      return [...filas].sort((a, b) => {
+        const va = a[campo];
+        const vb = b[campo];
+        // Los vacíos van siempre al final, se ordene como se ordene.
+        if (va == null && vb == null) return a.id - b.id;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        const cmp = typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : String(va).localeCompare(String(vb), 'es', { numeric: true, sensitivity: 'base' });
+        return cmp ? cmp * signo : a.id - b.id;
+      });
+    }
+
+    function pintarCabeceras() {
+      document.querySelectorAll('.col-orden').forEach((th) => {
+        th.classList.toggle('col-orden-activa', !!orden && orden.campo === th.dataset.campo);
+        const flecha = th.querySelector('.flecha');
+        if (flecha) flecha.remove();
+        if (orden && orden.campo === th.dataset.campo) {
+          th.insertAdjacentHTML('beforeend', `<span class="flecha"> ${orden.descendente ? '↓' : '↑'}</span>`);
+        }
+      });
+    }
+
+    // ---------- Pintado ----------
+
+    function vacio(cerradas) {
+      const q = document.getElementById('filtro-texto').value.trim();
+      if (q) return `Ninguna incidencia coincide con «${esc(q)}».`;
+      if (cerradas && cerradas.length) {
+        return 'Nada pendiente. Las cerradas están en «Completados», abajo.';
+      }
+      if (sesion.rol === 'empleado' && !sesion.locales.length) {
+        return 'No tienes ningún local asignado. Pide a un administrador que te asigne uno.';
+      }
+      if (sesion.rol === 'tecnico' && !sesion.grupo_id) {
+        return 'No perteneces a ningún departamento. Pide a un administrador que te asigne uno.';
+      }
+      return meta.puedeCrear
+        ? 'Sin incidencias con estos filtros. Abre una arriba.'
+        : 'Sin incidencias con estos filtros.';
+    }
+
+    function render() {
+      pintarCabeceras();
+      const abiertas = tickets.filter((t) => t.estado !== 'cerrado');
+      const cerradas = tickets.filter((t) => t.estado === 'cerrado');
+      document.getElementById('contador').textContent = cuenta(abiertas.length, 'incidencia', 'incidencias');
+      pintarCompletados(cerradas);
+
+      if (!abiertas.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">${vacio(cerradas)}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = ordenar(abiertas).map((t) => `<tr class="fila-ticket" data-id="${t.id}">
+        <td class="ps-3"><span class="mono-chip chip-numero">#${t.id}</span></td>
+        <td class="col-titulo">
+          <span class="fw-medium${t.estado === 'cerrado' ? ' text-muted' : ''}">${esc(t.titulo)}</span>
+          ${distintivoRespuesta(t, sesion)}
+          <div class="text-muted small">${esc(t.local_nombre)}${
+            t.mensajes ? ` · ${cuenta(t.mensajes, 'mensaje', 'mensajes')}` : ''
+          }${t.adjuntos ? ` · ${cuenta(t.adjuntos, 'adjunto', 'adjuntos')}` : ''}</div>
+        </td>
+        <td class="col-compacta">${esc(t.grupo_nombre)}</td>
+        <td>${textoEstado(t)}</td>
+        <td>${textoPrioridad(t)}</td>
+        <td class="col-compacta">${
+          t.asignado_nombre ? esc(t.asignado_nombre) : '<span class="text-muted">Sin asignar</span>'
+        }</td>
+        <td class="col-compacta">${
+          t.creador_nombre
+            ? esc(t.creador_nombre)
+            : `<span class="text-muted">${esc(t.tarea_nombre || 'Tarea programada')}</span>`
+        }</td>
+        <td class="col-compacta">
+          ${fmtFechaDe(t.actualizado_en)}
+          <div class="text-muted small">${esc(haceCuanto(t.actualizado_en))}</div>
+        </td>
+        <td class="text-end pe-3">
+          <a href="/ticket.html?id=${t.id}" class="btn btn-sm btn-link text-dark p-0">Ver</a>
+        </td>
+      </tr>`).join('');
+
+      enlazarFilas(tbody);
+    }
+
+    function enlazarFilas(caja) {
+      // Toda la fila abre la incidencia; el enlace «Ver» dice que se puede.
+      caja.querySelectorAll('.fila-ticket').forEach((fila) => {
+        fila.addEventListener('click', (e) => {
+          if (e.target.closest('a')) return;
+          location.href = `/ticket.html?id=${fila.dataset.id}`;
+        });
+      });
+    }
+
+    // Las incidencias ya resueltas: fuera de la tabla de trabajo y plegadas,
+    // pero a mano para consultarlas.
+    function pintarCompletados(cerradas) {
+      const caja = document.getElementById('caja-completados');
+      caja.hidden = !cerradas.length;
+      document.getElementById('titulo-completados').textContent =
+        `Completados · ${cuenta(cerradas.length, 'incidencia', 'incidencias')}`;
+      if (!cerradas.length) return;
+
+      const cuerpo = document.getElementById('rows-completados');
+      cuerpo.innerHTML = ordenar(cerradas).map((t) => `<tr class="fila-ticket" data-id="${t.id}">
+        <td class="ps-3"><span class="mono-chip chip-numero">#${t.id}</span></td>
+        <td class="col-titulo">
+          <span class="fw-medium text-muted">${esc(t.titulo)}</span>
+          <div class="text-muted small">${esc(t.local_nombre)}</div>
+        </td>
+        <td class="col-compacta text-muted">${esc(t.grupo_nombre)}</td>
+        <td class="col-compacta text-muted">${
+          t.asignado_nombre ? esc(t.asignado_nombre) : '<span class="cell-zero">—</span>'
+        }</td>
+        <td class="text-muted">${fmtFechaDe(t.cerrado_en || t.actualizado_en)}</td>
+        <td class="text-end pe-3">
+          <a href="/ticket.html?id=${t.id}" class="btn btn-sm btn-link text-dark p-0">Ver</a>
+        </td>
+      </tr>`).join('');
+      enlazarFilas(cuerpo);
+    }
+
+    function alternarCompletados() {
+      const panel = document.getElementById('panel-completados');
+      const abierto = panel.classList.toggle('d-none');
+      document.getElementById('flecha-completados').textContent = abierto ? '▸' : '▾';
+      document.getElementById('btn-completados').setAttribute('aria-expanded', String(!abierto));
+    }
+
+    // ---------- Alta ----------
+
+    // El activo depende a la vez del departamento y del local elegidos: está
+    // en un local concreto, así que hace falta tener los dos puestos antes de
+    // poder ofrecer alguno.
+    function actualizarActivos() {
+      const grupoId = Number(document.getElementById('t-grupo').value) || null;
+      const localId = Number(document.getElementById('t-local').value) || null;
+      const marcador = !grupoId
+        ? 'Elige antes un departamento'
+        : (!localId ? 'Elige antes un local' : 'Sin activo');
+      opciones(document.getElementById('t-activo'), activosDe(meta, grupoId, localId),
+        { placeholder: marcador });
+    }
+
+    function abrirNuevo() {
+      ocultarAlerta('modal-alert');
+      document.getElementById('form-ticket').reset();
+      opciones(document.getElementById('t-grupo'), meta.grupos, { placeholder: 'Elige un departamento' });
+      // Solo se puede abrir una incidencia en los locales asignados. Con uno
+      // solo no hay nada que elegir, así que viene puesto; con varios, se pide.
+      const propios = meta.localesPropios;
+      opciones(document.getElementById('t-local'), propios,
+        propios.length === 1 ? { seleccionado: propios[0].id } : { placeholder: 'Elige un local' });
+      opciones(document.getElementById('t-prioridad'), comoLista(PRIORIDADES), { seleccionado: 'normal' });
+
+      opciones(document.getElementById('t-area'), meta.areas || [], { placeholder: 'Elige un grupo' });
+      opciones(document.getElementById('t-familia'), [], { placeholder: 'Elige antes un grupo' });
+      opciones(document.getElementById('t-subfamilia'), [], { placeholder: 'Elige antes una familia' });
+      actualizarActivos();
+
+      // «A nombre de» solo lo ven quienes pueden usarlo: técnicos, gestores y
+      // administradores. Al resto ni se les enseña.
+      const caja = document.getElementById('caja-en-nombre');
+      caja.classList.toggle('d-none', !meta.puedeAbrirEnNombreDe);
+      if (meta.puedeAbrirEnNombreDe) {
+        opciones(document.getElementById('t-en-nombre'), meta.enNombreDe || [],
+          { placeholder: 'A mi nombre' });
+      }
+      modal.show();
+    }
+
+    async function guardar() {
+      const btn = document.getElementById('btn-guardar');
+      const archivo = document.getElementById('t-adjunto').files[0];
+      const cuerpo = {
+        titulo: document.getElementById('t-titulo').value,
+        descripcion: document.getElementById('t-descripcion').value,
+        grupo_id: Number(document.getElementById('t-grupo').value) || null,
+        local_id: Number(document.getElementById('t-local').value) || null,
+        area_id: Number(document.getElementById('t-area').value) || null,
+        familia_id: Number(document.getElementById('t-familia').value) || null,
+        subfamilia_id: Number(document.getElementById('t-subfamilia').value) || null,
+        activo_id: Number(document.getElementById('t-activo').value) || null,
+        prioridad: document.getElementById('t-prioridad').value,
+        en_nombre_de: Number(document.getElementById('t-en-nombre').value) || null
+      };
+      ocultarAlerta('modal-alert');
+      btn.disabled = true;
+      try {
+        // Primero el adjunto y después la incidencia: hasta que el archivo no
+        // está entero en el servidor no se crea nada, así que no puede quedar
+        // una incidencia avisando a los técnicos de una foto que no llegó.
+        if (archivo) {
+          btn.textContent = 'Subiendo el adjunto…';
+          const borrador = await adjuntarConProgreso(archivo, {
+            caja: document.getElementById('progreso-alta')
+          });
+          cuerpo.adjuntos = [borrador.id];
+        }
+
+        btn.textContent = 'Guardando…';
+        await fetchJSON('/api/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cuerpo)
+        });
+        modal.hide();
+        cargar();
+      } catch (e) {
+        mostrarAlerta('modal-alert', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar';
+      }
+    }
+
+    document.getElementById('btn-guardar').addEventListener('click', guardar);
+    init();
+  </script>
+</body>
+</html>

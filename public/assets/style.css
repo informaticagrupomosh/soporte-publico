@@ -1,0 +1,1060 @@
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.table {
+  font-size: 0.9rem;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+.table thead th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.alert {
+  font-size: 0.875rem;
+}
+
+.mono-chip {
+  font-family: ui-monospace, 'Cascadia Code', 'Courier New', monospace;
+  font-size: 0.78rem;
+  background: #f1f3f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+  word-break: break-all;
+}
+
+/* El número de la incidencia es corto y no debe partirse: «#3», no «# / 3». */
+
+.chip-numero {
+  word-break: normal;
+  white-space: nowrap;
+}
+
+/* Bocadillo que asoma la descripción de la incidencia */
+
+.btn-nota {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-left: 6px;
+  color: #adb5bd;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+.btn-nota:hover,
+.btn-nota:focus-visible {
+  color: #495057;
+}
+
+/* Mismo aspecto que el tooltip de los gráficos */
+
+.tooltip-inner {
+  max-width: 320px;
+  background: #212529;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: left;
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+.tooltip .tooltip-arrow::before {
+  border-top-color: #212529;
+  border-bottom-color: #212529;
+}
+
+/* Nombre de archivo que abre el adjunto */
+
+.chip-enlace {
+  color: #212529;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.chip-enlace:hover {
+  background: #e9ecef;
+  text-decoration-style: solid;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cell-zero {
+  color: #adb5bd;
+}
+
+/* Cabeceras ordenables */
+
+.col-orden {
+  cursor: pointer;
+  user-select: none;
+}
+
+.col-orden:hover {
+  color: #212529;
+}
+
+.col-orden-activa {
+  color: #212529;
+}
+
+.col-orden .flecha {
+  font-weight: 400;
+}
+
+/* Cabecera plegable de la tabla de completados. */
+
+.plegable {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #6c757d;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.plegable:hover,
+.plegable:focus-visible {
+  color: #212529;
+}
+
+/* Fila de la lista que abre el detalle de la incidencia */
+
+.fila-ticket {
+  cursor: pointer;
+}
+
+/* ---------- Detalle de la incidencia ---------- */
+
+/* La ficha: pares etiqueta/valor con la misma letra menuda de las cabeceras. */
+
+.ficha dt {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  margin-bottom: 0.1rem;
+}
+
+.ficha dd {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+/* El texto libre conserva sus saltos de línea sin dejar de ajustarse al panel. */
+
+.texto-libre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+/* Adjuntos: las fotos se ven en miniatura y se abren dentro de la página. */
+
+.adjunto-imagen {
+  width: 132px;
+  max-width: 100%;
+}
+
+.miniatura {
+  display: block;
+  width: 100%;
+  height: 96px;
+  padding: 0;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  background: #f1f3f5;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.miniatura:hover,
+.miniatura:focus-visible {
+  border-color: #adb5bd;
+}
+
+.miniatura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.adjunto-imagen figcaption {
+  margin-top: 0.15rem;
+}
+
+/* Los vídeos se ven en la ficha como las fotos, con sus controles. */
+
+.adjunto-video {
+  width: 260px;
+  max-width: 100%;
+}
+
+.adjunto-video video {
+  width: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  background: #212529;
+  display: block;
+}
+
+/* Comprimir y subir un vídeo lleva su tiempo: es lo único de la aplicación que
+   merece una barra en lugar de una palabra. Va en negro, como el resto. */
+
+.progreso {
+  margin-top: 0.5rem;
+}
+
+.barra-progreso {
+  height: 4px;
+  background: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.barra-progreso span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #212529;
+  transition: width 120ms linear;
+}
+
+.progreso-texto {
+  margin-top: 0.25rem;
+}
+
+/* La imagen a tamaño completo cabe siempre en la ventana. */
+
+.imagen-grande {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+/* El hilo enfrenta a los dos lados: lo que escribe uno mismo va a la derecha y
+   lo del otro a la izquierda, que es como se lee una conversación. El color
+   sigue sin distinguir nada: lo hacen el lado y el borde. */
+
+.mensaje {
+  display: flex;
+  margin-bottom: 0.75rem;
+}
+
+.mensaje:last-child {
+  margin-bottom: 0;
+}
+
+.mensaje-cuerpo {
+  max-width: 78%;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+}
+
+.mensaje-propio {
+  justify-content: flex-end;
+}
+
+.mensaje-propio .mensaje-cuerpo {
+  background: #f1f3f5;
+  border-color: #dee2e6;
+}
+
+.mensaje-autor {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.mensaje-fecha {
+  font-size: 0.78rem;
+  color: #6c757d;
+}
+
+/* Las casillas y los redondeles vienen en el azul de Bootstrap, que no existe
+   en esta paleta: se marcan en negro como el resto de los controles. */
+
+.form-check-input:checked {
+  background-color: #212529;
+  border-color: #212529;
+}
+
+.form-check-input:focus {
+  border-color: #adb5bd;
+  box-shadow: 0 0 0 0.25rem rgba(33, 37, 41, 0.15);
+}
+
+/* ---------- Planificación de las tareas programadas ---------- */
+
+/* La caja de «Cuándo se repite»: la frecuencia a la izquierda y sus ajustes a
+   la derecha, como en el programador de tareas de Windows. */
+
+.planificacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.planificacion > .frecuencia {
+  flex: 0 0 150px;
+}
+
+.planificacion > .ajustes {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* Rejillas de días: la del mes se reparte en cuantas columnas quepan y la de
+   la semana ocupa una fila por día si hace falta. */
+
+.rejilla-dias {
+  display: grid;
+  gap: 0.25rem 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(3.4rem, 1fr));
+}
+
+.rejilla-meses {
+  display: grid;
+  gap: 0.25rem 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+}
+
+.rejilla-dias .form-check,
+.rejilla-meses .form-check {
+  margin-bottom: 0;
+  font-size: 0.85rem;
+}
+
+/* Gráficos de los informes */
+
+.chart-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  margin-bottom: 0.75rem;
+}
+
+/* El circular ocupa hasta 240px y la leyenda solo lo que ocupa su texto: así el
+   par queda centrado en el panel en lugar de pegado a la izquierda. */
+
+.grafico-circular {
+  flex: 0 1 240px;
+  min-width: 150px;
+}
+
+.grafico-circular svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+#leyenda-circular {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.chart-empty {
+  color: #adb5bd;
+  font-size: 0.875rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 1080;
+  pointer-events: none;
+  background: #212529;
+  color: #fff;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  padding: 6px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+}
+
+.chart-legend {
+  font-size: 0.8rem;
+}
+
+.chart-legend td {
+  padding: 2px 0;
+  vertical-align: middle;
+}
+
+.chart-legend .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+.chart-legend .valor {
+  text-align: right;
+  padding-left: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chart-legend .porcentaje {
+  text-align: right;
+  padding-left: 8px;
+  color: #6c757d;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Filtros de la cabecera de cada sección */
+
+/* Cada campo declara su ancho de escritorio con la variable --ancho. */
+
+.filtros .form-select,
+.filtros .form-control {
+  width: var(--ancho, 100%);
+  max-width: 100%;
+}
+
+/* ---------- Pantallas pequeñas ---------- */
+
+/* Con el menú desplegado, sus entradas ocupan toda la anchura. */
+
+@media (max-width: 1199.98px) {
+  #nav-secciones .dropdown,
+  #nav-secciones .dropdown > .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 767.98px) {
+  /* Los filtros dejan su ancho fijo y se reparten la fila de dos en dos. */
+  .filtros > div {
+    flex: 1 1 45%;
+    min-width: 0;
+  }
+
+  .filtros .form-select,
+  .filtros .form-control {
+    width: 100%;
+  }
+
+  /* El contador y las notas al pie de los filtros pasan a línea propia. */
+  .filtros > .ms-auto {
+    flex: 1 1 100%;
+    margin-left: 0 !important;
+  }
+
+  /* Columnas que se esconden cuando no hay ancho: la tabla sigue teniendo
+     desplazamiento lateral, pero con mucho menos que arrastrar. */
+  .col-compacta {
+    display: none;
+  }
+
+  .table {
+    font-size: 0.85rem;
+  }
+
+  .table td,
+  .table th {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+
+  /* El título de la incidencia necesita sitio para no partirse en cinco
+     líneas, que es lo que convierte la lista en una escalera. */
+  .col-titulo {
+    min-width: 190px;
+  }
+
+  /* Los mensajes se estrechan menos: en un móvil, un globo al 78 % deja el
+     texto en una columna demasiado fina. */
+  .mensaje-cuerpo {
+    max-width: 88%;
+  }
+
+  /* Miniaturas y vídeos, a media pantalla. */
+  .adjunto-imagen {
+    width: 108px;
+  }
+
+  .adjunto-video {
+    width: 100%;
+  }
+
+  /* En pantallas muy estrechas el título parte de línea en lugar de empujar
+     la barra fuera de la ventana. */
+  .navbar-brand {
+    font-size: 1rem;
+    white-space: normal;
+    min-width: 0;
+  }
+
+  /* Las acciones de cada fila se apilan para no ensanchar la tabla. */
+  .acciones-fila {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.15rem;
+  }
+
+  .acciones-fila .btn {
+    margin: 0 !important;
+  }
+}
+
+/* En un móvil estrecho cada filtro ocupa la fila entera: repartidos de dos en
+   dos, el texto de los desplegables se corta y no se sabe qué hay elegido.
+   Va después del bloque anterior a propósito: es el que tiene que ganar. */
+
+@media (max-width: 519.98px) {
+  .filtros > div {
+    flex: 1 1 100%;
+  }
+
+  /* Plegados, los filtros desaparecen menos su nota al pie, que es la que
+     dice cuántas incidencias hay. */
+  .filtros.filtros-plegada > div {
+    display: none;
+  }
+
+  .filtros.filtros-plegada {
+    margin-bottom: 0.75rem;
+  }
+}
+
+.filtros-boton {
+  display: inline-flex;
+}
+
+/* ---------- Chat de local ---------- */
+
+/* Dos columnas: los canales a la izquierda y la conversación a la derecha,
+   como cualquier chat de escritorio. En un móvil solo cabe una, así que se
+   enseña la lista y, al entrar en un canal, la conversación entera. */
+
+.chat {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 0.75rem;
+  /* La conversación tiene que caber en la ventana sin que la página entera se
+     desplace: lo que se desplaza es la lista de mensajes, no el documento.
+     `dvh` en vez de `vh` porque en un móvil la barra del navegador aparece y
+     desaparece, y con `vh` el cuadro de escribir se queda debajo de ella. */
+  height: calc(100dvh - 8.5rem);
+  min-height: 24rem;
+}
+
+.chat-canales,
+.chat-conversacion,
+.chat-vacio {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chat-canales {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-canales-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem 0.5rem;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+/* El punto que dice si el flujo de eventos está vivo. Sin él, «no llega nada»
+   y «no ha escrito nadie» se ven exactamente igual. */
+
+.chat-conexion {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+  background: #ced4da;
+}
+
+.chat-conexion-viva {
+  background: #212529;
+}
+
+.chat-conexion-muerta {
+  background: #dc3545;
+}
+
+.chat-lista {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.chat-canal {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #f1f3f5;
+  background: none;
+  padding: 0.6rem 0.9rem;
+}
+
+.chat-canal:hover {
+  background: #f8f9fa;
+}
+
+.chat-canal-activo {
+  background: #f1f3f5;
+}
+
+.chat-canal-fila {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.chat-canal-nombre {
+  font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-canal-hora,
+.chat-canal-etiqueta {
+  font-size: 0.72rem;
+  color: #6c757d;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.chat-canal-etiqueta {
+  font-family: ui-monospace, 'Cascadia Code', 'Courier New', monospace;
+  margin-left: 0;
+}
+
+.chat-canal-ultimo {
+  font-size: 0.8rem;
+  color: #6c757d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El número de mensajes sin leer, en la lista de canales y en la barra de
+   navegación. Negro y no rojo: en esta paleta el rojo es la avería urgente. */
+
+.chat-sin-leer,
+.aviso-chat {
+  background: #212529;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 3px 6px;
+  margin-left: auto;
+}
+
+.aviso-chat {
+  margin-left: 0.35rem;
+  vertical-align: 1px;
+}
+
+.chat-conversacion {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.chat-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.chat-cabecera-nombre {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.chat-cabecera-gente {
+  font-size: 0.75rem;
+}
+
+.chat-volver {
+  display: none;
+}
+
+.chat-mensajes {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Una conversación corta se pega abajo, junto al cuadro de escribir, en vez de
+   quedarse colgada arriba con medio panel en blanco. Se hace empujando el
+   primer trozo con un margen automático y no con `justify-content`, que al
+   desbordar corta los mensajes de arriba y los deja fuera del desplazamiento. */
+
+.chat-mensajes > :first-child {
+  margin-top: auto;
+}
+
+.chat-mas,
+.chat-dia {
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.chat-mas {
+  font-size: 0.75rem;
+  color: #adb5bd;
+}
+
+.chat-dia span {
+  display: inline-block;
+  background: #e9ecef;
+  color: #495057;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  padding: 2px 10px;
+}
+
+/* Los globos: los propios a la derecha y los de los demás a la izquierda, con
+   el mismo criterio que el hilo de una incidencia. Van pegados y sin sombra,
+   que es lo que los hace compactos: en un canal de local se leen cincuenta
+   mensajes de una sentada. */
+
+.chat-globo {
+  display: flex;
+  margin-bottom: 0.35rem;
+}
+
+.chat-globo-propio {
+  justify-content: flex-end;
+}
+
+.chat-globo-seguido {
+  margin-top: -0.2rem;
+}
+
+.chat-burbuja {
+  position: relative;
+  /* En una pantalla ancha un globo al 76 % da líneas de doscientos caracteres,
+     que no se leen: manda lo que sea más estrecho de las dos cosas. */
+  max-width: min(76%, 38rem);
+  min-width: 5.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem 0.2rem;
+  background: #fff;
+}
+
+.chat-globo-propio .chat-burbuja {
+  background: #f1f3f5;
+}
+
+.chat-globo-pendiente .chat-burbuja {
+  opacity: 0.7;
+}
+
+.chat-autor {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.1rem;
+}
+
+.chat-texto-mensaje {
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-borrado {
+  font-size: 0.88rem;
+  font-style: italic;
+  color: #adb5bd;
+}
+
+.chat-pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  color: #6c757d;
+  line-height: 1.6;
+}
+
+.chat-tick {
+  letter-spacing: -1px;
+}
+
+.chat-tick-leido {
+  color: #212529;
+  font-weight: 700;
+}
+
+.chat-tick-fallo {
+  color: #dc3545;
+}
+
+/* La papelera de un mensaje propio solo aparece al pasar por encima: si
+   estuviera siempre, cada globo llevaría un botón. */
+
+.chat-borrar {
+  border: 0;
+  background: none;
+  color: #adb5bd;
+  padding: 0;
+  margin-right: auto;
+  line-height: 1;
+  font-size: 0.95rem;
+  visibility: hidden;
+}
+
+.chat-burbuja:hover .chat-borrar {
+  visibility: visible;
+}
+
+.chat-borrar:hover {
+  color: #dc3545;
+}
+
+/* Lo que se manda por el chat se ve en el propio globo. */
+
+.chat-foto {
+  display: block;
+  border: 0;
+  padding: 0;
+  margin-top: 0.25rem;
+  background: none;
+  cursor: zoom-in;
+}
+
+.chat-foto img {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 6px;
+  display: block;
+}
+
+.chat-video {
+  max-width: 100%;
+  width: 260px;
+  margin-top: 0.25rem;
+  border-radius: 6px;
+  background: #212529;
+  display: block;
+}
+
+.chat-nota-voz {
+  margin-top: 0.25rem;
+}
+
+.chat-nota-voz audio {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: 34px;
+}
+
+.chat-nota-voz-pie {
+  display: block;
+  font-size: 0.7rem;
+}
+
+.chat-documento {
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+.chat-escribiendo {
+  font-size: 0.75rem;
+  min-height: 1.1rem;
+  padding: 0 0.9rem;
+}
+
+/* El aviso de que hay algo nuevo abajo, para quien está leyendo hacia arriba y
+   no quiere que la pantalla se le vaya sola al final. */
+
+.chat-nuevos {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 5.5rem;
+  border: 1px solid #dee2e6;
+  background: #212529;
+  color: #fff;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  padding: 4px 12px;
+}
+
+.chat-redactar {
+  border-top: 1px solid #dee2e6;
+  padding: 0.6rem 0.75rem;
+}
+
+.chat-fila {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.chat-texto {
+  resize: none;
+  font-size: 0.9rem;
+  max-height: 140px;
+}
+
+.chat-icono {
+  flex: 0 0 auto;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.chat-icono-activo {
+  background: #212529;
+  color: #fff;
+}
+
+.chat-adjuntos-pendientes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.chat-pendiente {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f1f3f5;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+}
+
+.chat-quitar {
+  border: 0;
+  background: none;
+  color: #6c757d;
+  padding: 0;
+  line-height: 1;
+}
+
+.chat-grabando {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+
+.chat-punto-grabacion {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dc3545;
+  animation: chat-latido 1.2s infinite;
+}
+
+@keyframes chat-latido {
+  50% { opacity: 0.2; }
+}
+
+.chat-vacio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 767.98px) {
+  .chat {
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100dvh - 6.5rem);
+  }
+
+  /* Una columna: o los canales o la conversación, nunca las dos cosas. */
+  .chat-conversacion,
+  .chat-vacio {
+    display: none;
+  }
+
+  .chat-en-conversacion .chat-canales {
+    display: none;
+  }
+
+  .chat-en-conversacion .chat-conversacion {
+    display: flex;
+  }
+
+  .chat-volver {
+    display: inline-block;
+  }
+
+  .chat-burbuja {
+    max-width: 86%;
+  }
+}
+
+/* Va al final a propósito: `hidden` tiene que ganarle a los `display` de
+   arriba, que si no lo dejan sin efecto. */
+
+.chat-conversacion[hidden],
+.chat-vacio[hidden] {
+  display: none;
+}
+
+/* La foto de un mensaje que todavía va de camino, enseñada desde el propio
+   navegador mientras el servidor no tiene todavía la suya. */
+
+.chat-foto-previa {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+}

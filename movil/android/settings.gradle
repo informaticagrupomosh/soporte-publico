@@ -1,0 +1,31 @@
+pluginManagement {
+    def flutterSdkPath = {
+        def properties = new Properties()
+        file("local.properties").withInputStream { properties.load(it) }
+        def flutterSdkPath = properties.getProperty("flutter.sdk")
+        assert flutterSdkPath != null, "flutter.sdk no está en local.properties"
+        return flutterSdkPath
+    }()
+
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    // 8.11.1 es el mínimo que pide Flutter, y se queda deliberadamente por
+    // debajo del 9: con AGP 9 solo se lee la DSL nueva y el propio plugin de
+    // Flutter deja de aplicarse.
+    id "com.android.application" version "8.11.1" apply false
+    id "org.jetbrains.kotlin.android" version "2.2.20" apply false
+    // Lee google-services.json: sin este plugin la app no sabe a qué proyecto
+    // de Firebase pertenece y no llega ninguna notificación.
+    id "com.google.gms.google-services" version "4.4.2" apply false
+}
+
+include ":app"

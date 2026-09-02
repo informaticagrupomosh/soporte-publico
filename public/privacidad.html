@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de privacidad — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<!--
+  Esta página la exigen las dos tiendas para publicar la app, y la lee gente
+  sin sesión: Apple la abre desde la ficha de App Store Connect. Por eso está
+  en PUBLICAS y no depende de nada del servidor.
+
+  Está escrita sobre lo que el código hace de verdad. Si algún día la app
+  empieza a recoger otra cosa (analítica, publicidad, un servicio de terceros
+  nuevo), esta página se queda mintiendo, y eso es peor que no tenerla. Al
+  tocar `movil/pubspec.yaml` o las tablas de `db.js`, pásate por aquí.
+
+  El registro es jurídico a propósito: es un documento con efectos, no una
+  explicación. Al corregirlo, que siga diciendo lo que el programa hace.
+
+  ESTE DOCUMENTO ES UNA PLANTILLA. Describe con exactitud lo que el programa
+  hace con los datos —eso vale para cualquier instalación—, pero quien es
+  responsable de ellos cambia con cada despliegue, y de eso no puede responder
+  el proyecto.
+
+  Antes de publicar la aplicación hay que rellenar el apartado 1 y el 7 con la
+  entidad que administra el servidor y con una dirección de contacto que esté
+  atendida de verdad: es por donde se ejercen los derechos del apartado 8, y
+  Apple la mira al revisar la app. Los sitios están marcados con
+  [NOMBRE DE LA ORGANIZACIÓN], [DIRECCIÓN DEL SERVIDOR] y [CORREO DE CONTACTO].
+
+  Lo demás describe el programa y sirve igual en cualquier instalación,
+  mientras nadie cambie qué datos se recogen. Está explicado en el README.
+-->
+<body class="bg-light">
+  <div class="container py-4 py-md-5" style="max-width: 720px">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-md-5">
+
+        <small class="text-muted fw-semibold text-uppercase" id="marca"></small>
+        <h1 class="fw-bold h3 mb-1">Política de privacidad</h1>
+        <p class="text-muted small mb-4">
+          Aplicación «Incidencias» · Versión de [FECHA]
+        </p>
+
+        <p>
+          Esta política informa del tratamiento de datos personales que se
+          realiza a través de la aplicación «Incidencias» y del servidor al que
+          esta se conecta, conforme al Reglamento (UE) 2016/679, General de
+          Protección de Datos, y a la Ley Orgánica 3/2018, de Protección de
+          Datos Personales y garantía de los derechos digitales.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">1. Responsable del tratamiento</h2>
+        <p>
+          La aplicación funciona como cliente y no dispone de servidores
+          propios. Los datos que se introducen en ella se transmiten
+          exclusivamente al servidor cuya dirección indica el usuario durante la
+          instalación, y se conservan en dicho servidor.
+        </p>
+        <p>
+          En la instalación correspondiente a
+          <strong>[DIRECCIÓN DEL SERVIDOR]</strong>, el responsable del
+          tratamiento es <strong>[NOMBRE DE LA ORGANIZACIÓN]</strong>, con
+          dirección de contacto en materia de protección de datos en
+          <!-- Que la dirección esté atendida de verdad: es por donde se
+               ejercen los derechos del punto 8, y Apple la mira al revisar la
+               app. -->
+          <a href="mailto:[CORREO DE CONTACTO]">[CORREO DE CONTACTO]</a>.
+        </p>
+        <p>
+          Cuando el usuario configure la aplicación frente a un servidor
+          distinto, el responsable del tratamiento será la entidad que lo
+          administre, a la que corresponderá facilitar su propia información en
+          esta materia. La presente política no se extiende a dichas
+          instalaciones.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">2. Datos objeto de tratamiento</h2>
+        <p>Se tratan las siguientes categorías de datos:</p>
+        <ul>
+          <li>
+            Datos identificativos y profesionales de la cuenta: nombre, dirección
+            de correo electrónico, perfil de acceso asignado y centros de trabajo
+            vinculados. Las cuentas las crea el administrador de la instalación.
+            La aplicación no dispone de registro abierto.
+          </li>
+          <li>
+            Contenido aportado por el usuario en cada incidencia: descripción de
+            la avería, mensajes del expediente y archivos adjuntos, con
+            indicación de fecha y centro de trabajo.
+          </li>
+          <li>
+            Contenido aportado por el usuario en el chat de cada centro de
+            trabajo: el texto de los mensajes, con su autor y su fecha, y los
+            archivos que se remitan por esa vía, entre ellos fotografías,
+            vídeos, documentos y <strong>grabaciones de voz</strong> realizadas
+            con el micrófono del terminal.
+          </li>
+          <li>
+            Datos de uso del chat necesarios para su funcionamiento: hasta qué
+            mensaje ha recibido y hasta cuál ha leído cada usuario en cada
+            canal —de donde resultan los indicadores de entrega y lectura—, qué
+            usuarios tienen el chat abierto en cada momento y la indicación
+            momentánea de que alguien está escribiendo. Estos datos se emplean
+            únicamente para mostrar el estado de la conversación y no se
+            utilizan para valorar el desempeño de ninguna persona.
+          </li>
+          <li>
+            Identificador técnico del dispositivo para el envío de
+            notificaciones, asignado por Apple o por Google a cada instalación de
+            la aplicación, junto con la plataforma del terminal. Este
+            identificador no permite el seguimiento del usuario en otras
+            aplicaciones ni fuera de este servicio.
+          </li>
+          <li>
+            Datos de sesión que acreditan el acceso y evitan solicitar las
+            credenciales en cada uso.
+          </li>
+          <li>
+            Registro de intentos de acceso fallidos y, en su caso, del bloqueo
+            temporal de la cuenta.
+          </li>
+          <li>
+            Cuando el acceso se realice mediante Office 365, el identificador
+            asignado al usuario por Microsoft dentro del directorio corporativo
+            de su organización. Las credenciales de Microsoft no se introducen en
+            la aplicación ni son accesibles para ella: la identificación se
+            produce en el navegador del terminal, frente a Microsoft, y a la
+            aplicación únicamente se le devuelve la autorización de acceso.
+          </li>
+        </ul>
+
+        <h2 class="h5 fw-bold mt-4">3. Finalidades y base jurídica</h2>
+        <p>
+          Los datos de la cuenta y el contenido de las incidencias se tratan para
+          la gestión, seguimiento y resolución de las incidencias de
+          mantenimiento de los centros de trabajo, así como para la conservación
+          de su historial. La base jurídica es la ejecución de la relación que
+          vincula al usuario con la entidad responsable y el interés legítimo de
+          esta en la organización de su actividad de mantenimiento.
+        </p>
+        <p>
+          El chat de cada centro de trabajo se trata para la comunicación
+          operativa entre el personal vinculado a ese centro, con la misma base
+          jurídica. Conviene que el usuario tenga presente su alcance:
+          <strong>el canal de un centro lo ven todas las personas dadas de alta
+          en él</strong>, incluidos los perfiles de supervisión y
+          administración, que tienen acceso a los canales de todos los centros.
+          No es una vía de comunicación privada entre dos personas y no debe
+          emplearse para asuntos personales.
+        </p>
+        <p>
+          Los identificadores de dispositivo se tratan para remitir avisos sobre
+          incidencias que afectan al usuario, con base en el consentimiento que
+          este otorga al aceptar el permiso de notificaciones del sistema
+          operativo. Dicho consentimiento puede retirarse en cualquier momento
+          desde los ajustes del terminal.
+        </p>
+        <p>
+          El registro de intentos fallidos y el bloqueo de cuentas responden al
+          deber de adoptar medidas de seguridad adecuadas previsto en el artículo
+          32 del Reglamento.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">4. Permisos del dispositivo</h2>
+        <p>
+          La aplicación solicita acceso a la cámara y a la galería de imágenes
+          con la única finalidad de permitir la incorporación de material gráfico
+          a una incidencia. El acceso se produce únicamente cuando el usuario
+          activa la función de adjuntar. Ningún archivo se transmite sin una
+          acción expresa del usuario.
+        </p>
+        <p>
+          El permiso de micrófono se emplea para dos cosas: la pista de audio de
+          los vídeos que se graben y las notas de voz del chat. La grabación de
+          una nota de voz se inicia únicamente al pulsar el botón del micrófono
+          y termina al pulsarlo de nuevo; mientras dura, la pantalla lo indica.
+          La aplicación no accede al micrófono en ningún otro momento ni graba
+          en segundo plano.
+        </p>
+        <p>
+          El permiso de escritura en la galería se solicita solo si el usuario
+          decide guardar en el carrete de su terminal una fotografía o un vídeo
+          recibidos por el chat. Los archivos que la aplicación descarga para
+          mostrarlos van a su almacenamiento temporal y no se añaden a la
+          galería.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">5. Destinatarios</h2>
+        <p>
+          No se comunican datos a terceros ni se ceden con fines publicitarios,
+          de analítica o de elaboración de perfiles. La aplicación no incorpora
+          herramientas de medición de uso ni redes de publicidad.
+        </p>
+        <p>
+          La entrega de notificaciones requiere necesariamente la intervención de
+          los servicios de mensajería de Apple (Apple Push Notification service) y
+          de Google (Firebase Cloud Messaging), por ser el único medio técnico
+          que permite avisar a un terminal con la aplicación cerrada. En
+          consecuencia, el título y el texto del aviso, que identifican la
+          incidencia y el centro de trabajo, se transmiten a través de la
+          infraestructura de dichos proveedores. El contenido de la incidencia,
+          sus mensajes y sus archivos adjuntos no se comunican por esta vía: se
+          obtienen del servidor cuando el usuario abre la aplicación.
+        </p>
+        <p>
+          En el caso del chat, el aviso incluye además el nombre de quien
+          escribe y el comienzo del mensaje, por ser lo que permite decidir si
+          hay que atenderlo sin abrir la aplicación. Ese texto se transmite, por
+          tanto, a través de la infraestructura de los proveedores citados. Los
+          archivos no se remiten nunca por esa vía: de una fotografía o una nota
+          de voz, el aviso indica únicamente que lo es.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">6. Transferencias internacionales</h2>
+        <p>
+          El tratamiento descrito en el apartado anterior puede implicar el
+          acceso a datos desde fuera del Espacio Económico Europeo por parte de
+          los proveedores de los servicios de notificación, amparado en los
+          mecanismos de transferencia previstos en el capítulo V del Reglamento.
+          Al margen de dicho supuesto, los datos permanecen en el servidor de la
+          entidad responsable.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">7. Plazo de conservación</h2>
+        <p>
+          Las incidencias y su documentación se conservan mientras la entidad
+          responsable mantenga el historial de mantenimiento de sus centros de
+          trabajo, que constituye la finalidad del sistema. Los datos de la
+          cuenta se conservan mientras esta permanezca activa. El identificador
+          de notificaciones se elimina al cerrar la sesión o al desinstalar la
+          aplicación.
+        </p>
+        <p>
+          La supresión de una cuenta no comporta la de las incidencias
+          registradas a su través, que se mantienen como parte del historial de
+          mantenimiento del centro de trabajo. Los mensajes del chat se
+          conservan con el mismo criterio; los que un usuario elimine dejan de
+          mostrarse a todos los participantes.
+        </p>
+        <p>
+          La aplicación guarda en el propio terminal una copia de los datos que
+          muestra —incluidas las conversaciones del chat—, para poder funcionar
+          sin conexión y para no descargar repetidamente lo mismo. Esa copia
+          reside en el almacenamiento privado de la aplicación, al que no
+          acceden otras aplicaciones del dispositivo, y <strong>se elimina por
+          completo al cerrar la sesión</strong>, junto con lo que hubiera
+          quedado pendiente de enviar. Los archivos que se descargan para
+          verlos se guardan en el almacenamiento temporal, que el sistema
+          operativo puede vaciar cuando necesite espacio; los que el usuario
+          decida guardar en la galería permanecen en ella hasta que él los
+          borre.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">8. Derechos de las personas interesadas</h2>
+        <p>
+          El usuario puede ejercer los derechos de acceso, rectificación,
+          supresión, limitación del tratamiento, oposición y portabilidad
+          dirigiéndose al responsable de la instalación que utilice. En esta
+          instalación, mediante comunicación a
+          <a href="mailto:[CORREO DE CONTACTO]">[CORREO DE CONTACTO]</a>.
+        </p>
+        <p>
+          Asimismo, puede presentar una reclamación ante la Agencia Española de
+          Protección de Datos
+          (<a href="https://www.aepd.es" rel="noopener">www.aepd.es</a>) cuando
+          considere que el tratamiento no se ajusta a la normativa vigente.
+        </p>
+
+        <h2 class="h5 fw-bold mt-4">9. Modificaciones</h2>
+        <p>
+          Toda modificación de esta política se publicará en esta misma
+          dirección, con indicación de su fecha. No se remitirá comunicación
+          individual a los usuarios.
+        </p>
+
+        <hr class="my-4">
+        <p class="mb-0">
+          <a href="/login.html" class="text-decoration-none">Volver</a>
+        </p>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

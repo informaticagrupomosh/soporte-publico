@@ -1,0 +1,48 @@
+.dart_tool/
+.packages
+.idea/
+# El módulo que genera IntelliJ: es de quien lo abre, no del proyecto.
+*.iml
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Los archivos de Firebase de las dos plataformas —`google-services.json` y
+# `GoogleService-Info.plist`— sí van al repositorio: no son secretos, viajan
+# dentro de cada APK y de cada IPA y cualquiera puede sacarlos de ahí, y así el
+# proyecto compila recién clonado sin pasarlos por otro lado. El que no puede
+# subirse nunca es el `data/fcm.json` del servidor, que es la cuenta de
+# servicio y con ella se envían avisos en nombre del grupo. Tampoco la clave
+# `.p8` de APNs, que es de la cuenta de Apple entera.
+lib/firebase_options.dart
+*.p8
+
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/key.properties
+*.jks
+*.keystore
+# Lo reescribe Flutter en cada compilación, igual que el de iOS.
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Podfile.lock
+# Los escribe Flutter en cada compilación y llevan la ruta del SDK de esa
+# máquina: subirlos rompe la compilación en la de al lado.
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+**/xcuserdata/
+**/DerivedData/
+*.dSYM.zip

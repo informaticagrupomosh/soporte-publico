@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incidencia — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div id="contenido">
+      <p class="text-muted">Cargando…</p>
+    </div>
+  </div>
+
+  <!-- Previsualización de una imagen adjunta, dentro de la propia web -->
+  <div class="modal fade" id="modal-imagen" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="imagen-titulo"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img id="imagen-grande" class="imagen-grande" alt="">
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <a class="btn btn-light" id="imagen-descargar" download>Descargar</a>
+          <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    const ID = Number(new URLSearchParams(location.search).get('id'));
+    let sesion = null;
+    let meta = null;
+    let ticket = null;
+
+    async function init() {
+      sesion = await initPagina(ID ? `Incidencia #${ID}` : 'Incidencia');
+      if (!sesion) return;
+      if (!ID) {
+        document.getElementById('contenido').innerHTML =
+          '<p class="text-muted">No se ha indicado ninguna incidencia. Vuelve a la lista de Incidencias.</p>';
+        return;
+      }
+      try {
+        [ticket, meta] = await Promise.all([fetchJSON(`/api/tickets/${ID}`), fetchJSON('/api/meta')]);
+      } catch (e) {
+        document.getElementById('contenido').innerHTML =
+          `<p class="text-danger">${esc(e.message)}</p>`;
+        return;
+      }
+      render();
+
+      // Salir con cambios a medias sin querer es fácil; el navegador avisa.
+      window.addEventListener('beforeunload', (e) => {
+        if (!hayCambios()) return;
+        e.preventDefault();
+        e.returnValue = '';
+      });
+
+      // A partir de aquí la incidencia se mantiene sola: si el técnico
+      // contesta, o el empleado vuelve a escribir, se ve sin recargar la
+      // página, igual que en la lista.
+      setInterval(() => refrescar(), 15000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refrescar();
+      });
+    }
+
+    // ---------- Pintado ----------
+
+    function fichaHtml() {
+      const asignada = ticket.asignado_nombre
+        ? esc(ticket.asignado_nombre)
+        : '<span class="text-muted">Sin asignar</span>';
+      const abiertaPor = ticket.creador_nombre
+        ? esc(ticket.creador_nombre)
+        : `<span class="text-muted">${esc(ticket.tarea_nombre || 'Tarea programada')}</span>`;
+      return `
+        <dl class="ficha row mb-0">
+          <div class="col-6 col-md-3"><dt>Estado</dt><dd>${textoEstado(ticket)}</dd></div>
+          <div class="col-6 col-md-3"><dt>Prioridad</dt><dd>${textoPrioridad(ticket)}</dd></div>
+          <div class="col-6 col-md-3"><dt>Departamento</dt><dd>${esc(ticket.grupo_nombre)}</dd></div>
+          <div class="col-6 col-md-3"><dt>Local</dt><dd>${esc(ticket.local_nombre)}</dd></div>
+          ${ticket.area_nombre
+            ? `<div class="col-6 col-md-3"><dt>Grupo</dt><dd>${esc(ticket.area_nombre)}</dd></div>` : ''}
+          ${ticket.familia_nombre
+            ? `<div class="col-6 col-md-3"><dt>Familia</dt><dd>${esc(ticket.familia_nombre)}</dd></div>` : ''}
+          ${ticket.subfamilia_nombre
+            ? `<div class="col-6 col-md-3"><dt>Subfamilia</dt><dd>${esc(ticket.subfamilia_nombre)}</dd></div>` : ''}
+          ${ticket.empresa_nombre
+            ? `<div class="col-6 col-md-3"><dt>Empresa</dt><dd>${esc(ticket.empresa_nombre)}</dd></div>` : ''}
+          ${ticket.activo_nombre
+            ? `<div class="col-6 col-md-3"><dt>Activo</dt><dd>${esc(ticket.activo_nombre)}</dd></div>` : ''}
+          <div class="col-6 col-md-3"><dt>Abierta por</dt><dd>${abiertaPor}</dd></div>
+          <div class="col-6 col-md-3"><dt>Asignada a</dt><dd>${asignada}</dd></div>
+          <div class="col-6 col-md-3"><dt>Abierta</dt><dd>${fmtFechaHora(ticket.creado_en)}</dd></div>
+          <div class="col-6 col-md-3"><dt>${ticket.cerrado_en ? 'Resuelta' : 'Actualizada'}</dt>
+            <dd>${fmtFechaHora(ticket.cerrado_en || ticket.actualizado_en)}</dd></div>
+        </dl>`;
+    }
+
+    // Los controles de gestión solo se pintan para quien puede usarlos. Lo que
+    // se toca aquí no viaja al servidor hasta pulsar «Guardar»: cambiar tres
+    // cosas seguidas era antes tres guardados y tres recargas.
+    function gestionHtml() {
+      if (!ticket.puedeGestionar) return '';
+      const tecnicos = meta.tecnicos.filter((t) => t.grupo_id === ticket.grupo_id);
+      return `
+        <div class="border-top pt-3 mt-3">
+          <div class="filtros d-flex flex-wrap align-items-end gap-3">
+            <div>
+              <label class="form-label mb-1 small text-muted" for="g-estado">Estado</label>
+              <select id="g-estado" class="form-select form-select-sm" style="--ancho: 160px"></select>
+            </div>
+            <div>
+              <label class="form-label mb-1 small text-muted" for="g-prioridad">Prioridad</label>
+              <select id="g-prioridad" class="form-select form-select-sm" style="--ancho: 180px"></select>
+            </div>
+            <div>
+              <label class="form-label mb-1 small text-muted" for="g-asignado">Asignada a</label>
+              <select id="g-asignado" class="form-select form-select-sm" style="--ancho: 200px"></select>
+            </div>
+            <div>
+              <button class="btn btn-dark btn-sm" id="btn-guardar">Guardar</button>
+            </div>
+            ${tecnicos.some((t) => t.id === sesion.id) ? `
+              <div>
+                <button class="btn btn-outline-secondary btn-sm" id="btn-asignarme">Asignármela</button>
+              </div>` : ''}
+            <span class="text-muted small ms-auto" id="aviso-cambios"></span>
+          </div>
+          ${eliminarHtml()}
+        </div>`;
+    }
+
+    // Borrar una incidencia es cosa del administrador, y solo suya: se lleva
+    // por delante el hilo y los adjuntos, así que separado de «Guardar» para
+    // no confundirlo con un cambio de gestión más.
+    function eliminarHtml() {
+      if (sesion.rol !== 'admin') return '';
+      return `
+        <div class="d-flex justify-content-end mt-3 pt-3 border-top">
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-eliminar">Eliminar incidencia</button>
+        </div>`;
+    }
+
+    function puedeBorrar(a) {
+      return sesion.rol === 'admin' || a.subido_por === sesion.id;
+    }
+
+    /**
+     * Los adjuntos de la incidencia o de uno de sus mensajes. Las fotos se ven
+     * aquí mismo, en miniatura, y al pulsarlas se abren a tamaño completo sin
+     * salir de la página: son lo que más se adjunta y abrir una pestaña por
+     * cada una para ver si es la avería correcta no vale de nada. Los
+     * documentos siguen siendo un enlace, que es lo único que se puede hacer
+     * con ellos.
+     */
+    function adjuntosDe(mensajeId) {
+      const lista = ticket.adjuntos_lista.filter((a) => (a.mensaje_id || null) === mensajeId);
+      if (!lista.length) return '';
+
+      const imagenes = lista.filter((a) => a.tipo === 'imagen');
+      const videos = lista.filter((a) => a.tipo === 'video');
+      const documentos = lista.filter((a) => a.tipo === 'documento');
+
+      const galeria = imagenes.length ? `
+        <div class="mt-2 d-flex flex-wrap gap-3">${imagenes.map((a) => `
+          <figure class="adjunto-imagen mb-0">
+            <button type="button" class="miniatura" data-ver-imagen="${a.id}"
+                    title="${esc(a.nombre)}">
+              <img src="/api/adjuntos/${a.id}" alt="${esc(a.nombre)}" loading="lazy">
+            </button>
+            <figcaption class="text-muted small text-truncate">${esc(a.nombre)}</figcaption>
+            ${puedeBorrar(a)
+              ? `<button class="btn btn-sm btn-link text-danger p-0" data-borrar-adjunto="${a.id}">Eliminar</button>`
+              : ''}
+          </figure>`).join('')}</div>` : '';
+
+      // El vídeo se reproduce donde está, sin descargarlo entero de antemano.
+      const peliculas = videos.length ? `
+        <div class="mt-2 d-flex flex-wrap gap-3">${videos.map((a) => `
+          <figure class="adjunto-video mb-0">
+            <video controls preload="metadata" playsinline
+                   src="/api/adjuntos/${a.id}" aria-label="${esc(a.nombre)}"></video>
+            <figcaption class="text-muted small text-truncate">${esc(a.nombre)}</figcaption>
+            ${puedeBorrar(a)
+              ? `<button class="btn btn-sm btn-link text-danger p-0" data-borrar-adjunto="${a.id}">Eliminar</button>`
+              : ''}
+          </figure>`).join('')}</div>` : '';
+
+      const enlaces = documentos.length ? `
+        <div class="mt-2 d-flex flex-wrap gap-2">${documentos.map((a) => `
+          <span class="d-inline-flex align-items-center gap-2">
+            <a class="mono-chip chip-enlace" href="/api/adjuntos/${a.id}" target="_blank"
+               rel="noopener">${esc(a.nombre)}</a>
+            ${puedeBorrar(a)
+              ? `<button class="btn btn-sm btn-link text-danger p-0" data-borrar-adjunto="${a.id}">Eliminar</button>`
+              : ''}
+          </span>`).join('')}</div>` : '';
+
+      return galeria + peliculas + enlaces;
+    }
+
+    function hiloHtml() {
+      if (!ticket.mensajes_hilo.length) {
+        return '<p class="text-muted mb-0">Todavía no hay mensajes. Escribe el primero abajo.</p>';
+      }
+      return ticket.mensajes_hilo.map((m) => {
+        const propio = m.autor_id === sesion.id;
+        return `
+        <div class="mensaje${propio ? ' mensaje-propio' : ''}">
+          <div class="mensaje-cuerpo">
+            <div class="d-flex flex-wrap align-items-baseline gap-2">
+              <span class="mensaje-autor">${propio ? 'Tú' : esc(m.autor_nombre)}</span>
+              <span class="mensaje-fecha">${
+                propio ? '' : `${esc(ROLES[m.autor_rol] || m.autor_rol)} · `
+              }${fmtFechaHora(m.creado_en)}</span>
+            </div>
+            <div class="texto-libre mt-1">${esc(m.contenido)}</div>
+            ${adjuntosDe(m.id)}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    /**
+     * La descripción de la incidencia.
+     *
+     * Desde que la descripción es el primer mensaje del hilo, aquí no se repite:
+     * se leería dos veces en la misma pantalla. Las incidencias antiguas no
+     * tienen ese mensaje y siguen enseñándola aquí.
+     */
+    function descripcionHtml() {
+      if (ticket.mensajes_hilo.some((m) => m.apertura)) return '';
+      if (!ticket.descripcion) return '<p class="text-muted mb-4">Sin descripción.</p>';
+      return `<div class="texto-libre mb-4">${esc(ticket.descripcion)}</div>`;
+    }
+
+    function render() {
+      document.getElementById('contenido').innerHTML = `
+        <div class="bg-white border rounded p-3 p-md-4 mb-3">
+          <h1 class="h5 fw-semibold mb-1${ticket.estado === 'cerrado' ? ' text-muted' : ''}">${
+            esc(ticket.titulo)
+          }</h1>
+          <div class="text-muted small mb-3">
+            Incidencia <span class="mono-chip chip-numero">#${ticket.id}</span>
+            ${distintivoRespuesta(ticket, sesion)}
+          </div>
+          ${descripcionHtml()}
+          ${fichaHtml()}
+          ${adjuntosDe(null)}
+          ${gestionHtml()}
+        </div>
+
+        <div class="bg-white border rounded p-3 p-md-4">
+          <div class="chart-title">Conversación</div>
+          <div id="hilo">${hiloHtml()}</div>
+
+          <form id="form-mensaje" class="border-top pt-3 mt-3">
+            <div id="mensaje-alert" class="alert d-none" role="alert"></div>
+            <div class="mb-3">
+              <label class="form-label" for="m-contenido">Responder</label>
+              <textarea class="form-control" id="m-contenido" rows="3"
+                        placeholder="Responder" required></textarea>
+            </div>
+            <div class="row align-items-end">
+              <div class="col-md-8 mb-3">
+                <label class="form-label" for="m-adjunto">Adjunto <span class="text-muted">(opcional)</span></label>
+                <input type="file" class="form-control" id="m-adjunto"
+                       accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                <div class="form-text">Foto, vídeo o documento. Los vídeos se comprimen antes de subirlos.</div>
+                <div class="progreso d-none" id="progreso-mensaje">
+                  <div class="barra-progreso"><span></span></div>
+                  <div class="progreso-texto text-muted small"></div>
+                </div>
+              </div>
+              <div class="col-md-4 mb-3 text-md-end">
+                <button type="submit" class="btn btn-dark" id="btn-enviar">Enviar</button>
+              </div>
+            </div>
+          </form>
+        </div>`;
+
+      if (ticket.puedeGestionar) pintarGestion();
+      if (sesion.rol === 'admin') {
+        document.getElementById('btn-eliminar').addEventListener('click', eliminarTicket);
+      }
+      document.getElementById('form-mensaje').addEventListener('submit', enviar);
+      enlazarAdjuntos();
+    }
+
+    /**
+     * Los vídeos que graba el navegador salen sin duración anotada, así que la
+     * barra de reproducción aparece vacía. Saltar al final y volver obliga al
+     * reproductor a calcularla; es el apaño habitual para este formato.
+     */
+    function arreglarDuracion(video) {
+      if (Number.isFinite(video.duration)) return;
+      const alSaber = () => {
+        if (!Number.isFinite(video.duration)) return;
+        video.removeEventListener('durationchange', alSaber);
+        video.currentTime = 0;
+      };
+      video.addEventListener('durationchange', alSaber);
+      video.currentTime = 1e6;
+    }
+
+    function enlazarAdjuntos() {
+      document.querySelectorAll('.adjunto-video video').forEach((v) => {
+        if (v.readyState >= 1) arreglarDuracion(v);
+        else v.addEventListener('loadedmetadata', () => arreglarDuracion(v), { once: true });
+      });
+      document.querySelectorAll('[data-borrar-adjunto]').forEach((b) =>
+        b.addEventListener('click', () => borrarAdjunto(Number(b.dataset.borrarAdjunto))));
+      document.querySelectorAll('[data-ver-imagen]').forEach((b) =>
+        b.addEventListener('click', () => verImagen(Number(b.dataset.verImagen))));
+    }
+
+    const modalImagen = new bootstrap.Modal(document.getElementById('modal-imagen'));
+
+    function verImagen(id) {
+      const a = ticket.adjuntos_lista.find((x) => x.id === id);
+      if (!a) return;
+      document.getElementById('imagen-titulo').textContent = a.nombre;
+      document.getElementById('imagen-grande').src = `/api/adjuntos/${a.id}`;
+      document.getElementById('imagen-grande').alt = a.nombre;
+      const descargar = document.getElementById('imagen-descargar');
+      descargar.href = `/api/adjuntos/${a.id}`;
+      descargar.setAttribute('download', a.nombre);
+      modalImagen.show();
+    }
+
+    // ---------- Gestión ----------
+
+    function pintarGestion() {
+      const estado = document.getElementById('g-estado');
+      const prioridad = document.getElementById('g-prioridad');
+      const asignado = document.getElementById('g-asignado');
+      opciones(estado, comoLista(ESTADOS), { seleccionado: ticket.estado });
+      opciones(prioridad, comoLista(PRIORIDADES), { seleccionado: ticket.prioridad });
+      opciones(asignado, meta.tecnicos.filter((t) => t.grupo_id === ticket.grupo_id),
+        { placeholder: 'Sin asignar', seleccionado: ticket.asignado_a });
+
+      for (const campo of [estado, prioridad, asignado]) {
+        campo.addEventListener('change', comprobarCambios);
+      }
+      const mia = document.getElementById('btn-asignarme');
+      if (mia) {
+        mia.addEventListener('click', () => {
+          asignado.value = String(sesion.id);
+          comprobarCambios();
+        });
+      }
+      document.getElementById('btn-guardar').addEventListener('click', guardarGestion);
+      comprobarCambios();
+    }
+
+    // Lo elegido en el formulario, para compararlo con lo guardado.
+    function gestionDelFormulario() {
+      return {
+        estado: document.getElementById('g-estado').value,
+        prioridad: document.getElementById('g-prioridad').value,
+        asignado_a: Number(document.getElementById('g-asignado').value) || null
+      };
+    }
+
+    function hayCambios() {
+      if (!ticket.puedeGestionar) return false;
+      const f = gestionDelFormulario();
+      return f.estado !== ticket.estado
+        || f.prioridad !== ticket.prioridad
+        || f.asignado_a !== (ticket.asignado_a || null);
+    }
+
+    // El botón de guardar solo se ofrece cuando hay algo que guardar.
+    function comprobarCambios() {
+      const cambios = hayCambios();
+      const boton = document.getElementById('btn-guardar');
+      if (boton) {
+        boton.disabled = !cambios;
+        boton.textContent = cambios ? 'Guardar' : 'Guardado';
+      }
+      const aviso = document.getElementById('aviso-cambios');
+      if (aviso) aviso.textContent = cambios ? 'Hay cambios sin guardar.' : '';
+    }
+
+    async function guardarGestion() {
+      if (!hayCambios()) return;
+      const boton = document.getElementById('btn-guardar');
+      const controles = document.querySelectorAll('#g-estado, #g-prioridad, #g-asignado, #btn-asignarme');
+      controles.forEach((c) => { c.disabled = true; });
+      if (boton) { boton.disabled = true; boton.textContent = 'Guardando…'; }
+      try {
+        await fetchJSON(`/api/tickets/${ticket.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(gestionDelFormulario())
+        });
+        await recargar();
+      } catch (e) {
+        alertaPagina(e.message);
+        controles.forEach((c) => { c.disabled = false; });
+        comprobarCambios();
+      }
+    }
+
+    // ---------- Hilo ----------
+
+    async function enviar(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-enviar');
+      const contenido = document.getElementById('m-contenido').value.trim();
+      const archivo = document.getElementById('m-adjunto').files[0];
+      ocultarAlerta('mensaje-alert');
+      // Un mensaje puede ser solo una foto, sin texto.
+      if (!contenido && !archivo) {
+        mostrarAlerta('mensaje-alert', 'Escribe un mensaje o adjunta un archivo.');
+        return;
+      }
+      btn.disabled = true;
+      try {
+        // El adjunto va dentro del mensaje, así que sube antes: el mensaje se
+        // manda ya con él y en el hilo aparecen juntos.
+        const adjuntos = [];
+        if (archivo) {
+          btn.textContent = 'Subiendo el adjunto…';
+          const borrador = await adjuntarConProgreso(archivo, {
+            caja: document.getElementById('progreso-mensaje')
+          });
+          adjuntos.push(borrador.id);
+        }
+
+        btn.textContent = 'Enviando…';
+        await fetchJSON(`/api/tickets/${ticket.id}/mensajes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contenido, adjuntos })
+        });
+        await recargar();
+      } catch (err) {
+        mostrarAlerta('mensaje-alert', err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar';
+      }
+    }
+
+    async function borrarAdjunto(id) {
+      const adjunto = ticket.adjuntos_lista.find((a) => a.id === id);
+      if (!adjunto) return;
+      if (!await confirmar(`¿Eliminar el adjunto «${adjunto.nombre}»?`, { titulo: 'Eliminar adjunto' })) return;
+      try {
+        await fetchJSON(`/api/adjuntos/${id}`, { method: 'DELETE' });
+        await recargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function eliminarTicket() {
+      const seguro = await confirmar(
+        'Se borran también su hilo y sus adjuntos. No se puede deshacer.',
+        { titulo: 'Eliminar la incidencia' }
+      );
+      if (!seguro) return;
+      try {
+        await fetchJSON(`/api/tickets/${ticket.id}`, { method: 'DELETE' });
+        location.href = '/index.html';
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function recargar() {
+      ticket = await fetchJSON(`/api/tickets/${ID}`);
+      render();
+    }
+
+    // ---------- Actualización en segundo plano ----------
+
+    // Lo que se pierde con un repintado: lo que se está escribiendo abajo y,
+    // si esta persona gestiona la incidencia, lo que haya tocado en los
+    // desplegables sin guardar todavía.
+    function estadoFormulario() {
+      const contenido = document.getElementById('m-contenido');
+      const adjunto = document.getElementById('m-adjunto');
+      const gEstado = document.getElementById('g-estado');
+      return {
+        contenido: contenido ? contenido.value : '',
+        archivo: adjunto && adjunto.files[0] ? adjunto.files[0] : null,
+        gestion: gEstado ? gestionDelFormulario() : null,
+        scrollY: window.scrollY
+      };
+    }
+
+    function restaurarFormulario(previo) {
+      const contenido = document.getElementById('m-contenido');
+      if (contenido) contenido.value = previo.contenido;
+      const adjunto = document.getElementById('m-adjunto');
+      if (adjunto && previo.archivo) {
+        // Los <input type="file"> no aceptan un valor a mano; hay que colar el
+        // archivo por un DataTransfer, que es lo que arrastraría el usuario.
+        const transferencia = new DataTransfer();
+        transferencia.items.add(previo.archivo);
+        adjunto.files = transferencia.files;
+      }
+      const gEstado = document.getElementById('g-estado');
+      if (gEstado && previo.gestion) {
+        gEstado.value = previo.gestion.estado;
+        document.getElementById('g-prioridad').value = previo.gestion.prioridad;
+        document.getElementById('g-asignado').value = previo.gestion.asignado_a || '';
+        comprobarCambios();
+      }
+      window.scrollTo(0, previo.scrollY);
+    }
+
+    // Refresco silencioso: si nadie ha tocado nada nuevo no repinta, y si la
+    // red falla un momento no molesta con un error, porque ya se reintenta
+    // solo en el siguiente turno.
+    async function refrescar() {
+      if (document.hidden) return;
+      let nuevo;
+      try {
+        nuevo = await fetchJSON(`/api/tickets/${ID}`);
+      } catch (e) {
+        return;
+      }
+      if (JSON.stringify(nuevo) === JSON.stringify(ticket)) return;
+      const previo = estadoFormulario();
+      ticket = nuevo;
+      render();
+      restaurarFormulario(previo);
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Desde Android 13 el usuario tiene que dar permiso para las
+         notificaciones; la app lo pide al iniciar sesión. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- El aviso vuelve a estar disponible tras reiniciar el teléfono. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Las notas de voz del chat de local. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Guardar en el carrete una foto o un vídeo del chat, y solo cuando
+         se pide: hasta Android 9 hacía falta este permiso para escribir en
+         el almacenamiento compartido. De Android 10 en adelante no. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- Desde Android 11 una app solo ve las demás si las declara aquí. Sin
+         esto, abrir el navegador para entrar con Office 365 no encontraría
+         ninguno. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="Incidencias"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Los enlaces de los correos abren la app en la incidencia.
+                 El dominio se pone al empaquetar, en `android/app/build.gradle`
+                 (manifestPlaceholders.dominio), porque cada instalación tiene el
+                 suyo. Con `autoVerify` y el archivo
+                 `/.well-known/assetlinks.json` publicado en ese dominio, Android
+                 abre la app directamente; sin él, ofrece elegir entre la app y
+                 el navegador, que también sirve. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${dominio}"
+                      android:pathPrefix="/ticket.html" />
+            </intent-filter>
+
+            <!-- La vuelta de la entrada con Office 365. Se identifica en el
+                 navegador del teléfono, y el servidor devuelve el vale por
+                 este esquema, que es el mismo identificador del paquete para
+                 no chocar con el de nadie. Tiene que coincidir con el enlace de
+                 `public/entra-movil.html` y con `Entra.esquema` en la app.
+
+                 No lleva `autoVerify`: un esquema propio no se verifica contra
+                 ningún dominio, así que funciona con el APK recién instalado y
+                 sin publicar nada. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.ejemplo.soporte" android:host="entra" />
+            </intent-filter>
+
+            <!-- El servidor manda `click_action: FLUTTER_NOTIFICATION_CLICK`.
+                 Con este filtro, pulsar el aviso abre esta pantalla en lugar de
+                 depender de que Android acierte con la de arranque. -->
+            <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Canal por el que Firebase entrega los avisos cuando la app está
+             cerrada. Tiene que ser el mismo identificador que usa el servidor
+             (CANAL en notificaciones.js) y el que crea la app al arrancar: un
+             aviso a un canal inexistente no se muestra. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="incidencias_avisos" />
+
+        <!-- Sin icono propio, Android pinta el de la app recortado y sale un
+             cuadrado blanco en la barra de estado. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notificacion" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/color_aviso" />
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+</manifest>
