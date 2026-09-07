@@ -568,3 +568,246 @@ test('quien deja de estar en un local deja de ver su canal', async () => {
   });
   assert.strictEqual(antiguo.estado, 404);
 });
+
+// ---------- Moderación ----------
+//
+// Denunciar y suspender no son un adorno de las tiendas: son las dos mitades
+// de lo que Apple pide para publicar una app con conversación —avisar de un
+// mensaje y poder echar a quien se pasa—, y sin ellas la ficha no pasa. Lo que
+// se comprueba aquí es que el aviso llega, que se puede despachar, y sobre
+// todo que una cuenta suspendida deja de entrar de verdad.
+
+test('se avisa de un mensaje ajeno, y una sola vez por persona', async () => {
+  const mensaje = await escribir(mundo.jose.token, mundo.local1, 'Esto no se dice');
+  assert.strictEqual(mensaje.estado, 201);
+
+  const aviso = await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.juan.token, cuerpo: { motivo: 'Se ha pasado' }
+  });
+  assert.strictEqual(aviso.estado, 201);
+
+  // Insistir no multiplica el aviso, y a quien insiste no se le da un error:
+  // para él ya está denunciado.
+  const otraVez = await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.juan.token, cuerpo: { motivo: 'De verdad' }
+  });
+  assert.strictEqual(otraVez.estado, 201);
+
+  const cola = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos;
+  const mias = cola.filter((d) => d.mensaje.id === mensaje.datos.id);
+  assert.strictEqual(mias.length, 1);
+  assert.strictEqual(mias[0].motivo, 'Se ha pasado');
+  assert.strictEqual(mias[0].denunciante.nombre, 'Juan');
+  assert.strictEqual(mias[0].mensaje.contenido, 'Esto no se dice');
+});
+
+test('del mensaje propio no se avisa: se borra', async () => {
+  const mensaje = await escribir(mundo.juan.token, mundo.local1, 'Lo mío');
+  const aviso = await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.juan.token, cuerpo: {}
+  });
+  assert.strictEqual(aviso.estado, 400);
+});
+
+test('no se puede avisar de un mensaje de un canal ajeno', async () => {
+  const mensaje = await escribir(mundo.juan.token, mundo.local1, 'Cosas del local');
+  // Lucía no está en LOCAL 1: para ella ese mensaje no existe, ni para avisar.
+  const aviso = await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.lucia.token, cuerpo: {}
+  });
+  assert.strictEqual(aviso.estado, 404);
+});
+
+test('la cola de denuncias es solo del administrador', async () => {
+  const intento = await pedir('GET', '/api/chat/denuncias', { token: mundo.juan.token });
+  assert.strictEqual(intento.estado, 403);
+});
+
+test('borrar el mensaje da por atendida su denuncia', async () => {
+  const mensaje = await escribir(mundo.jose.token, mundo.local1, 'Otra que sobra');
+  await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.juan.token, cuerpo: { motivo: 'Fuera' }
+  });
+
+  const antes = (await pedir('GET', '/api/chat/resumen', { token: mundo.admin })).datos;
+  assert.ok(antes.denuncias_pendientes > 0);
+
+  await pedir('DELETE', `/api/chat/mensajes/${mensaje.datos.id}`, { token: mundo.admin });
+
+  const cola = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos;
+  assert.ok(!cola.some((d) => d.mensaje.id === mensaje.datos.id),
+    'una denuncia cuyo mensaje ya se ha borrado no puede seguir pidiendo que alguien la mire');
+
+  const resueltas = (await pedir('GET', '/api/chat/denuncias?resueltas=1', {
+    token: mundo.admin
+  })).datos;
+  assert.ok(resueltas.some((d) => d.mensaje.id === mensaje.datos.id));
+});
+
+test('una denuncia se puede despachar sin borrar nada', async () => {
+  const mensaje = await escribir(mundo.jose.token, mundo.local1, 'Una broma de las suyas');
+  await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.juan.token, cuerpo: {}
+  });
+  const cola = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos;
+  const mia = cola.find((d) => d.mensaje.id === mensaje.datos.id);
+
+  const hecho = await pedir('POST', `/api/chat/denuncias/${mia.id}/resolver`, {
+    token: mundo.admin
+  });
+  assert.strictEqual(hecho.estado, 200);
+
+  // El mensaje sigue donde estaba: lo que se ha decidido es que no era para tanto.
+  const sigue = (await pedir('GET', `/api/chat/canales/${mundo.local1}/mensajes`, {
+    token: mundo.juan.token
+  })).datos;
+  assert.ok(sigue.mensajes.some((m) => m.id === mensaje.datos.id && !m.borrado));
+});
+
+test('una cuenta suspendida deja de entrar y pierde sus sesiones', async () => {
+  const antonio = await crearUsuario(mundo.admin, {
+    nombre: 'Antonio', usuario: 'antonio', password: 'incidencias1', rol: 'empleado',
+    locales: [mundo.local1]
+  });
+
+  const suspension = await pedir('POST', `/api/usuarios/${antonio.id}/suspender`, {
+    token: mundo.admin
+  });
+  assert.strictEqual(suspension.estado, 200);
+
+  // La sesión que ya tenía abierta deja de valer en el momento: si no, seguiría
+  // escribiendo hasta que se le ocurriera cerrar la app.
+  const conLaVieja = await pedir('GET', '/api/chat/canales', { token: antonio.token });
+  assert.strictEqual(conLaVieja.estado, 401);
+
+  // Y no puede volver a entrar, aunque la contraseña sea la buena.
+  const intento = await pedir('POST', '/api/login', {
+    cuerpo: { usuario: antonio.email, password: 'incidencias1' }
+  });
+  assert.strictEqual(intento.estado, 403);
+  assert.match(intento.datos.error, /suspendida/i);
+
+  // Deja de estar en el canal, así que tampoco le llegan avisos de lo que se
+  // hable allí.
+  const mensaje = await escribir(mundo.juan.token, mundo.local1, 'Sin Antonio');
+  assert.strictEqual(mensaje.estado, 201);
+
+  const vuelta = await pedir('POST', `/api/usuarios/${antonio.id}/reactivar`, {
+    token: mundo.admin
+  });
+  assert.strictEqual(vuelta.estado, 200);
+  const otraVez = await pedir('POST', '/api/login', {
+    cuerpo: { usuario: antonio.email, password: 'incidencias1' }
+  });
+  assert.strictEqual(otraVez.estado, 200);
+});
+
+test('la suspensión no la levanta el «reactivar acceso» de los intentos fallidos', async () => {
+  const berta = await crearUsuario(mundo.admin, {
+    nombre: 'Berta', usuario: 'berta', password: 'incidencias1', rol: 'empleado',
+    locales: [mundo.local1]
+  });
+  await pedir('POST', `/api/usuarios/${berta.id}/suspender`, { token: mundo.admin });
+
+  // Son dos cosas distintas y por eso son dos columnas: si compartieran una,
+  // un «reactivar» hecho por despiste devolvería la cuenta a la conversación.
+  await pedir('POST', `/api/usuarios/${berta.id}/desbloquear`, { token: mundo.admin });
+
+  const intento = await pedir('POST', '/api/login', {
+    cuerpo: { usuario: berta.email, password: 'incidencias1' }
+  });
+  assert.strictEqual(intento.estado, 403);
+});
+
+test('nadie se suspende a sí mismo', async () => {
+  // Es lo único que hace falta prohibir para que la instalación no se quede
+  // sin administrador: quien suspende sigue dentro, y él puede levantarlo.
+  const sesion = (await pedir('GET', '/api/session', { token: mundo.admin })).datos;
+  const propia = await pedir('POST', `/api/usuarios/${sesion.id}/suspender`, {
+    token: mundo.admin
+  });
+  assert.strictEqual(propia.estado, 400);
+
+  // A otro administrador sí, y suspender dos veces al mismo no es un error:
+  // desde la lista de usuarios y desde la de denuncias se puede pulsar dos
+  // veces, y lo segundo tiene que ser un no-hacer-nada.
+  const otroAdmin = await crearUsuario(mundo.admin, {
+    nombre: 'Otra admin', usuario: 'otraadmin', password: 'incidencias1', rol: 'admin'
+  });
+  assert.strictEqual(
+    (await pedir('POST', `/api/usuarios/${otroAdmin.id}/suspender`, { token: mundo.admin })).estado,
+    200);
+  assert.strictEqual(
+    (await pedir('POST', `/api/usuarios/${otroAdmin.id}/suspender`, { token: mundo.admin })).estado,
+    200);
+});
+
+test('suspender saca a la persona de los desplegables de asignación', async () => {
+  const tecnico = await crearUsuario(mundo.admin, {
+    nombre: 'Tomás', usuario: 'tomas', password: 'incidencias1', rol: 'tecnico',
+    grupo_id: mundo.mantenimiento, locales: [mundo.local1]
+  });
+
+  const antes = (await pedir('GET', '/api/meta', { token: mundo.admin })).datos;
+  assert.ok(antes.tecnicos.some((t) => t.id === tecnico.id));
+
+  await pedir('POST', `/api/usuarios/${tecnico.id}/suspender`, { token: mundo.admin });
+
+  const despues = (await pedir('GET', '/api/meta', { token: mundo.admin })).datos;
+  assert.ok(!despues.tecnicos.some((t) => t.id === tecnico.id),
+    'a quien no puede entrar no se le pueden seguir asignando incidencias');
+});
+
+test('resolver una denuncia no cierra las demás del mismo mensaje', async () => {
+  // Dos personas avisan del mismo mensaje. Atender a una no es atender a la
+  // otra: a cada una se le contesta por separado, y del cierre depende el
+  // aviso que se le manda de vuelta.
+  const mensaje = await escribir(mundo.jose.token, mundo.local1, 'Dos avisos para esto');
+  for (const quien of [mundo.juan, mundo.santiago]) {
+    const puesta = await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+      token: quien.token, cuerpo: {}
+    });
+    assert.strictEqual(puesta.estado, 201);
+  }
+
+  const cola = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos;
+  const suyas = cola.filter((d) => d.mensaje.id === mensaje.datos.id);
+  assert.strictEqual(suyas.length, 2);
+
+  await pedir('POST', `/api/chat/denuncias/${suyas[0].id}/resolver`, { token: mundo.admin });
+
+  const despues = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos
+    .filter((d) => d.mensaje.id === mensaje.datos.id);
+  assert.strictEqual(despues.length, 1);
+  assert.strictEqual(despues[0].id, suyas[1].id);
+
+  // Y borrar el mensaje cierra la que quedaba.
+  await pedir('DELETE', `/api/chat/mensajes/${mensaje.datos.id}`, { token: mundo.admin });
+  const alFinal = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos;
+  assert.ok(!alFinal.some((d) => d.mensaje.id === mensaje.datos.id));
+});
+
+test('resolver dos veces no vuelve a avisar a nadie', async () => {
+  // El aviso de vuelta sale de las filas que estaban pendientes, así que la
+  // segunda vez no hay ninguna y no se manda nada. Se comprueba por lo que se
+  // puede ver: la denuncia no cambia de manos ni de fecha.
+  const mensaje = await escribir(mundo.jose.token, mundo.local1, 'Para resolver dos veces');
+  await pedir('POST', `/api/chat/mensajes/${mensaje.datos.id}/denuncia`, {
+    token: mundo.juan.token, cuerpo: {}
+  });
+  const cola = (await pedir('GET', '/api/chat/denuncias', { token: mundo.admin })).datos;
+  const mia = cola.find((d) => d.mensaje.id === mensaje.datos.id);
+
+  await pedir('POST', `/api/chat/denuncias/${mia.id}/resolver`, { token: mundo.admin });
+  const primera = (await pedir('GET', '/api/chat/denuncias?resueltas=1', { token: mundo.admin }))
+    .datos.find((d) => d.id === mia.id);
+
+  const otraVez = await pedir('POST', `/api/chat/denuncias/${mia.id}/resolver`, {
+    token: mundo.admin
+  });
+  assert.strictEqual(otraVez.estado, 200);
+
+  const segunda = (await pedir('GET', '/api/chat/denuncias?resueltas=1', { token: mundo.admin }))
+    .datos.find((d) => d.id === mia.id);
+  assert.strictEqual(segunda.resuelto_en, primera.resuelto_en);
+});

@@ -424,7 +424,8 @@ function cuentaDe(datos) {
   }
 
   if (fila) {
-    if (fila.bloqueada) throw visible(auth.MENSAJE_BLOQUEADA);
+    const cerrada = auth.motivoSinAcceso(fila);
+    if (cerrada) throw visible(cerrada);
     // La cuenta que ya existía queda atada al tenant la primera vez que se
     // entra así. El correo se deja como está: aquí es el nombre de acceso, y
     // cambiarlo por lo que diga Microsoft dejaría fuera a quien entre con
@@ -552,7 +553,8 @@ function cuentaDelVale(vale, verificador) {
   }
   const cuenta = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(fila.usuario_id);
   if (!cuenta) throw visible('La cuenta ya no existe.');
-  if (cuenta.bloqueada) throw visible(auth.MENSAJE_BLOQUEADA);
+  const cerrada = auth.motivoSinAcceso(cuenta);
+  if (cerrada) throw visible(cerrada);
   return cuenta;
 }
 

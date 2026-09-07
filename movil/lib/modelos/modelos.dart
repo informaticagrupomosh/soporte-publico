@@ -479,6 +479,7 @@ class Cuenta {
     this.email,
     this.locales = const [],
     this.bloqueada = false,
+    this.suspendida = false,
     this.entra = false,
   });
 
@@ -498,6 +499,11 @@ class Cuenta {
   /// administrador.
   final bool bloqueada;
 
+  /// La suspende un administrador, a mano. No es lo mismo que `bloqueada`, y
+  /// por eso son dos: aquella la pone la máquina y se limpia al reactivar el
+  /// acceso; esta la decide una persona y solo una persona la quita.
+  final bool suspendida;
+
   /// Si entra con la cuenta de Office 365 del grupo.
   final bool entra;
 
@@ -511,6 +517,7 @@ class Cuenta {
         email: j['email'] as String?,
         locales: Catalogo.lista(j['locales']),
         bloqueada: j['bloqueada'] == 1 || j['bloqueada'] == true,
+        suspendida: j['suspendida'] == 1 || j['suspendida'] == true,
         entra: j['entra'] == 1 || j['entra'] == true,
       );
 }

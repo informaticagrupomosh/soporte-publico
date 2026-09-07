@@ -390,9 +390,26 @@ function mensajeHtml(m, anterior) {
     : `${m.contenido ? `<div class="chat-texto-mensaje">${conEnlaces(m.contenido)}</div>` : ''}
        ${adjuntosHtml(m)}`;
 
-  const borrar = propio && !m.borrado && !m.pendiente
+  // El administrador borra cualquier mensaje, no solo el suyo: es lo que hace
+  // falta cuando lo que hay que quitar lo ha escrito otro.
+  const puedeBorrar = (propio || chat.sesion.rol === 'admin') && !m.borrado && !m.pendiente;
+  const borrar = puedeBorrar
     ? `<button type="button" class="chat-borrar" data-borrar="${m.id}"
                title="Eliminar el mensaje" aria-label="Eliminar el mensaje">×</button>`
+    : '';
+
+  // Avisar de un mensaje ajeno. Del propio no: para eso está el borrar.
+  const denunciar = !propio && !m.borrado && !m.pendiente
+    ? `<button type="button" class="chat-denunciar" data-denunciar="${m.id}"
+               title="Avisar al administrador" aria-label="Avisar al administrador">⚑</button>`
+    : '';
+
+  // Copiar el texto. De cualquiera, también del propio y del que todavía está
+  // en la cola: no cambia nada y es lo que más se usa —en un chat de trabajo
+  // se pasan referencias de pedido, matrículas y números de serie—.
+  const copiar = m.contenido && !m.borrado
+    ? `<button type="button" class="chat-copiar" data-copiar="1"
+               title="Copiar el texto" aria-label="Copiar el texto">⧉</button>`
     : '';
 
   return `
@@ -403,7 +420,7 @@ function mensajeHtml(m, anterior) {
         ${cabecera}
         ${cuerpo}
         <div class="chat-pie">
-          ${borrar}
+          <span class="chat-acciones">${copiar}${borrar}${denunciar}</span>
           <span class="chat-hora">${horaDe(m.creado_en)}</span>
           ${ticksHtml(m)}
         </div>
@@ -552,6 +569,14 @@ function enlazarMensajes(caja) {
   caja.querySelectorAll('[data-borrar]:not([data-enlazado])').forEach((b) => {
     b.dataset.enlazado = '1';
     b.addEventListener('click', () => borrarMensaje(Number(b.dataset.borrar)));
+  });
+  caja.querySelectorAll('[data-denunciar]:not([data-enlazado])').forEach((b) => {
+    b.dataset.enlazado = '1';
+    b.addEventListener('click', () => denunciarMensaje(Number(b.dataset.denunciar)));
+  });
+  caja.querySelectorAll('[data-copiar]:not([data-enlazado])').forEach((b) => {
+    b.dataset.enlazado = '1';
+    b.addEventListener('click', () => copiarMensaje(b));
   });
 }
 
@@ -768,6 +793,86 @@ async function borrarMensaje(id) {
   try {
     const borrado = await fetchJSON(`/api/chat/mensajes/${id}`, { method: 'DELETE' });
     reemplazarMensaje(borrado);
+  } catch (e) {
+    mostrarAlerta('chat-alert', e.message);
+  }
+}
+
+// ---------- Copiar ----------
+
+/**
+ * El texto de un mensaje al portapapeles.
+ *
+ * Se lee de lo que hay pintado y no del objeto del mensaje: así vale igual
+ * para uno confirmado que para uno que sigue en la cola de salida, y lo que se
+ * copia es exactamente lo que se está viendo. Solo el texto: ni el nombre de
+ * quien escribió ni la hora, que estorban allá donde se vaya a pegar.
+ */
+async function copiarMensaje(boton) {
+  const globo = boton.closest('.chat-burbuja');
+  const texto = globo && globo.querySelector('.chat-texto-mensaje');
+  if (!texto) return;
+  const contenido = texto.textContent.trim();
+  if (!contenido) return;
+
+  try {
+    await alPortapapeles(contenido);
+    mostrarAlerta('chat-alert', 'Texto copiado.', 'success');
+  } catch (e) {
+    mostrarAlerta('chat-alert', 'No se ha podido copiar.');
+  }
+}
+
+/**
+ * El portapapeles, por las dos vías.
+ *
+ * `navigator.clipboard` solo existe en un contexto seguro —HTTPS o localhost—.
+ * Una instalación a la que se entra por su dirección IP en la red de un local
+ * no lo es, y allí el botón no haría nada sin decir por qué; de ahí lo de
+ * abajo, que es lo que había antes de que existiera esa API.
+ */
+async function alPortapapeles(texto) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(texto);
+  }
+  const campo = document.createElement('textarea');
+  campo.value = texto;
+  // Fuera de la vista, pero dentro del documento: seleccionar algo que no está
+  // pintado no copia nada.
+  campo.style.position = 'fixed';
+  campo.style.opacity = '0';
+  document.body.appendChild(campo);
+  campo.select();
+  try {
+    if (!document.execCommand('copy')) throw new Error('el navegador no ha copiado');
+  } finally {
+    campo.remove();
+  }
+}
+
+// ---------- Denunciar ----------
+
+/**
+ * Avisa al administrador de un mensaje ajeno.
+ *
+ * Se pide un motivo, y se deja mandarlo en blanco: obligar a escribir algo
+ * hace que quien tenga prisa no avise. Lo que hace falta es que llegue.
+ */
+async function denunciarMensaje(id) {
+  const motivo = prompt(
+    'Se avisa al administrador, que verá el mensaje y decidirá.\n\n'
+    + '¿Qué pasa con él? (puedes dejarlo en blanco)'
+  );
+  // `prompt` devuelve null al cancelar y '' al aceptar en blanco: solo lo
+  // primero es «déjalo».
+  if (motivo === null) return;
+  try {
+    await fetchJSON(`/api/chat/mensajes/${id}/denuncia`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo })
+    });
+    mostrarAlerta('chat-alert', 'Avisado. El administrador lo revisará.', 'success');
   } catch (e) {
     mostrarAlerta('chat-alert', e.message);
   }

@@ -1,7 +1,7 @@
 name: incidencias
 description: App móvil de gestión de incidencias por local.
 publish_to: none
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   # Lo que de verdad hace falta: `record` 6 pide Flutter 3.24 y Dart 3.5. Se

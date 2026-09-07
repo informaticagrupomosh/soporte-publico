@@ -166,6 +166,7 @@
           <span class="mono-chip">${esc(u.usuario)}</span>
           ${u.entra ? ' <span class="badge text-bg-light border">Office 365</span>' : ''}
           ${u.bloqueada ? '<div class="text-danger small">Acceso bloqueado por intentos fallidos</div>' : ''}
+          ${u.suspendida ? '<div class="text-danger small fw-medium">Cuenta suspendida</div>' : ''}
         </td>
         <td>${esc(ROLES[u.rol] || u.rol)}</td>
         <td class="text-muted small">${
@@ -176,6 +177,9 @@
           ${u.bloqueada
             ? `<button class="btn btn-sm btn-link text-dark p-0 me-3" data-desbloquear="${u.id}">Reactivar acceso</button>`
             : ''}
+          ${sesion && u.id === sesion.id ? '' : (u.suspendida
+            ? `<button class="btn btn-sm btn-link text-dark p-0 me-3" data-reactivar="${u.id}">Levantar suspensión</button>`
+            : `<button class="btn btn-sm btn-link text-danger p-0 me-3" data-suspender="${u.id}">Suspender</button>`)}
           <button class="btn btn-sm btn-link text-dark p-0 me-3" data-editar="${u.id}">Editar</button>
           ${sesion && u.id === sesion.id
             ? ''
@@ -189,6 +193,10 @@
         b.addEventListener('click', () => eliminar(Number(b.dataset.eliminar))));
       tbody.querySelectorAll('[data-desbloquear]').forEach((b) =>
         b.addEventListener('click', () => desbloquear(Number(b.dataset.desbloquear))));
+      tbody.querySelectorAll('[data-suspender]').forEach((b) =>
+        b.addEventListener('click', () => suspender(Number(b.dataset.suspender))));
+      tbody.querySelectorAll('[data-reactivar]').forEach((b) =>
+        b.addEventListener('click', () => reactivar(Number(b.dataset.reactivar))));
     }
 
     // Tras diez intentos fallidos la cuenta queda bloqueada y solo la reactiva
@@ -200,6 +208,43 @@
         { titulo: 'Reactivar acceso', aceptar: 'Reactivar', peligro: false })) return;
       try {
         await fetchJSON(`/api/usuarios/${id}/desbloquear`, { method: 'POST' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    /**
+     * Suspender es la forma de echar a alguien.
+     *
+     * Eliminar casi nunca se puede —una cuenta con incidencias a su nombre no
+     * se borra, porque se llevaría el historial por delante— y tampoco sería
+     * lo que se quiere: lo que hace falta es que deje de entrar y de escribir,
+     * no que desaparezca lo que ya hizo.
+     */
+    async function suspender(id) {
+      const u = usuarios.find((x) => x.id === id);
+      if (!u) return;
+      if (!await confirmar(
+        `«${u.nombre}» dejará de poder entrar, por contraseña y por Office 365, `
+        + 'y se cerrarán las sesiones que tenga abiertas. Sus incidencias y sus '
+        + 'mensajes anteriores se quedan como están.',
+        { titulo: 'Suspender la cuenta', aceptar: 'Suspender' })) return;
+      try {
+        await fetchJSON(`/api/usuarios/${id}/suspender`, { method: 'POST' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function reactivar(id) {
+      const u = usuarios.find((x) => x.id === id);
+      if (!u) return;
+      if (!await confirmar(`«${u.nombre}» volverá a poder entrar.`,
+        { titulo: 'Levantar la suspensión', aceptar: 'Levantar', peligro: false })) return;
+      try {
+        await fetchJSON(`/api/usuarios/${id}/reactivar`, { method: 'POST' });
         cargar();
       } catch (e) {
         alertaPagina(e.message);

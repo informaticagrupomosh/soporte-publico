@@ -11,3 +11,7 @@ data/
 # el suyo. Cómo, en movil/README.md.
 movil/android/app/google-services.json
 movil/ios/Runner/GoogleService-Info.plist
+
+# El SDK que descarga FVM. La versión sí se versiona —está en `movil/.fvmrc`—;
+# los cientos de megas del SDK, no.
+movil/.fvm/

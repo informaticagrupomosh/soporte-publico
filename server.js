@@ -149,8 +149,9 @@ app.post('/api/login', (req, res) => {
   const fila = auth.buscarCuenta(usuario);
   if (!fila) return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
 
-  if (fila.bloqueada) {
-    return res.status(403).json({ error: auth.MENSAJE_BLOQUEADA, bloqueada: true });
+  const cerrada = auth.motivoSinAcceso(fila);
+  if (cerrada) {
+    return res.status(403).json({ error: cerrada, bloqueada: true });
   }
   // Los intentos hechos durante una espera no cuentan: si contaran, insistir
   // sin parar agotaría los diez intentos y bloquearía la cuenta al momento.
@@ -382,7 +383,7 @@ app.get('/api/meta', (req, res) => {
   // asignación de cada incidencia.
   const tecnicos = db.prepare(`
     SELECT u.id, u.nombre, u.grupo_id FROM usuarios u
-    WHERE u.rol = 'tecnico' AND u.bloqueada = 0 ORDER BY u.nombre
+    WHERE u.rol = 'tecnico' AND u.bloqueada = 0 AND u.suspendida = 0 ORDER BY u.nombre
   `).all();
 
   // Quién aparece en el filtro de los informes: los técnicos dados de alta,
@@ -405,7 +406,8 @@ app.get('/api/meta', (req, res) => {
   const enNombreDe = auth.puedeAbrirEnNombreDe(req.user)
     ? db.prepare(`
         SELECT u.id, u.nombre, u.rol FROM usuarios u
-        WHERE u.bloqueada = 0 AND u.rol IN ('usuario', 'empleado', 'tecnico', 'gestor', 'admin')
+        WHERE u.bloqueada = 0 AND u.suspendida = 0
+              AND u.rol IN ('usuario', 'empleado', 'tecnico', 'gestor', 'admin')
         ORDER BY u.nombre
       `).all()
     : [];
@@ -1301,7 +1303,7 @@ app.get('/api/informes', (req, res) => {
     : db.prepare(`
         SELECT DISTINCT u.id, u.nombre FROM usuarios u
         WHERE (
-          u.rol = 'tecnico' AND u.bloqueada = 0
+          u.rol = 'tecnico' AND u.bloqueada = 0 AND u.suspendida = 0
           AND (? IS NULL OR u.grupo_id = ?)
           AND (
             ? IS NULL
@@ -1668,7 +1670,7 @@ app.delete('/api/empresas/:id', auth.soloAdmin, (req, res) => {
 function usuarioConLocales(id) {
   const u = db.prepare(`
     SELECT u.id, u.usuario, u.nombre, u.rol, u.email, u.grupo_id, g.nombre AS grupo_nombre,
-           u.creado_en, u.bloqueada,
+           u.creado_en, u.bloqueada, u.suspendida,
            -- Si esta cuenta entra con Office 365, para distinguirla en la
            -- lista: su contraseña, si la tiene, no es por donde entra.
            CASE WHEN u.entra_oid IS NULL THEN 0 ELSE 1 END AS entra
@@ -1819,6 +1821,42 @@ app.post('/api/usuarios/:id/desbloquear', auth.soloAdmin, (req, res) => {
     return res.status(404).json({ error: 'Usuario no encontrado.' });
   }
   auth.limpiarIntentos(id);
+  res.json(usuarioConLocales(id));
+});
+
+/**
+ * Suspende una cuenta: deja de poder entrar y se cierran sus sesiones.
+ *
+ * Es la forma de echar a alguien de la conversación. Borrar la cuenta casi
+ * nunca se puede —el historial de incidencias que tenga a su nombre lo
+ * impide— y tampoco sería lo que se quiere: lo que hace falta es que deje de
+ * escribir, no que desaparezca lo que ya hizo.
+ *
+ * No se toca `bloqueada`, que es la del contador de intentos fallidos: si
+ * fueran la misma, un «reactivar acceso» hecho por despiste levantaría también
+ * la suspensión.
+ */
+app.post('/api/usuarios/:id/suspender', auth.soloAdmin, (req, res) => {
+  const id = num(req.params.id);
+  const fila = id && db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+  if (!fila) return res.status(404).json({ error: 'Usuario no encontrado.' });
+  // Suspenderse uno mismo es lo único que no se deja, y con eso basta para que
+  // la instalación no se quede sin administrador: quien suspende sigue dentro.
+  // No hace falta además contar cuántos quedan.
+  if (id === req.user.id) return badRequest(res, 'No puedes suspender tu propia cuenta.');
+  db.prepare('UPDATE usuarios SET suspendida = 1 WHERE id = ?').run(id);
+  db.prepare('DELETE FROM sesiones WHERE usuario_id = ?').run(id);
+  res.json(usuarioConLocales(id));
+});
+
+// Levanta la suspensión. El contador de intentos fallidos no se toca: si
+// además estaba bloqueada por eso, sigue estándolo hasta que se reactive.
+app.post('/api/usuarios/:id/reactivar', auth.soloAdmin, (req, res) => {
+  const id = num(req.params.id);
+  if (!id || !db.prepare('SELECT 1 FROM usuarios WHERE id = ?').get(id)) {
+    return res.status(404).json({ error: 'Usuario no encontrado.' });
+  }
+  db.prepare('UPDATE usuarios SET suspendida = 0 WHERE id = ?').run(id);
   res.json(usuarioConLocales(id));
 });
 

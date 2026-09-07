@@ -614,6 +614,10 @@ const SECCIONES_ADMIN = [
   { href: '/familias.html', etiqueta: 'Grupos y familias', roles: ['admin'] },
   { href: '/empresas.html', etiqueta: 'Empresas', roles: ['admin'] },
   { href: '/usuarios.html', etiqueta: 'Usuarios', roles: ['admin'] },
+  // Los mensajes de los que alguien ha avisado. Va en Administración y no en
+  // la barra porque la mayoría de los días está vacía; cuando no lo está, el
+  // aviso sale en el propio desplegable.
+  { href: '/moderacion.html', etiqueta: 'Moderación', roles: ['admin'] },
   // El programador lo lleva también el gestor.
   { href: '/tareas.html', etiqueta: 'Tareas programadas', roles: ['admin', 'gestor'] }
 ];
@@ -635,10 +639,12 @@ function renderNav(sesion, seccion) {
   const admin = entradasAdmin.length ? `
     <div class="dropdown">
       <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-        Administración
+        Administración<span class="aviso-chat d-none" id="aviso-admin"></span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
-        ${entradasAdmin.map((s) => `<li><a class="dropdown-item" href="${s.href}">${esc(s.etiqueta)}</a></li>`).join('')}
+        ${entradasAdmin.map((s) => `<li><a class="dropdown-item" href="${s.href}">${esc(s.etiqueta)}${
+          s.href === '/moderacion.html' ? '<span class="aviso-chat d-none" id="aviso-moderacion"></span>' : ''
+        }</a></li>`).join('')}
       </ul>
     </div>` : '';
 
@@ -740,6 +746,22 @@ function pintarAvisoChat(sinLeer) {
   aviso.classList.toggle('d-none', !sinLeer);
 }
 
+/**
+ * Las denuncias de chat sin atender, para el administrador.
+ *
+ * Sale en el desplegable y también en el botón que lo abre: dentro de un menú
+ * cerrado no lo vería nadie, y lo que se está prometiendo a las tiendas es que
+ * a esto se le contesta el mismo día.
+ */
+function pintarAvisoModeracion(pendientes) {
+  for (const id of ['aviso-admin', 'aviso-moderacion']) {
+    const aviso = document.getElementById(id);
+    if (!aviso) continue;
+    aviso.textContent = pendientes > 99 ? '99+' : String(pendientes || '');
+    aviso.classList.toggle('d-none', !pendientes);
+  }
+}
+
 const CHAT_CADA_MS = 30000;
 
 async function mirarChat() {
@@ -747,13 +769,16 @@ async function mirarChat() {
   try {
     const resumen = await fetchJSON('/api/chat/resumen');
     pintarAvisoChat(resumen.sin_leer);
+    pintarAvisoModeracion(resumen.denuncias_pendientes);
   } catch (e) { /* se vuelve a mirar en la siguiente vuelta */ }
 }
 
-function vigilarChat() {
+function vigilarChat(sesion) {
   // En la propia pantalla del chat el número lo lleva ella, al día y sin
-  // preguntar cada medio minuto.
-  if (location.pathname === '/chat.html') return;
+  // preguntar cada medio minuto. El administrador es la excepción: el mismo
+  // resumen trae las denuncias sin atender, y esa pantalla no las cuenta.
+  const esAdmin = !!sesion && sesion.rol === 'admin';
+  if (location.pathname === '/chat.html' && !esAdmin) return;
   mirarChat();
   setInterval(mirarChat, CHAT_CADA_MS);
   document.addEventListener('visibilitychange', () => {
@@ -768,7 +793,7 @@ async function initPagina(seccion) {
     const sesion = await fetchJSON('/api/session');
     renderNav(sesion, seccion);
     plegarFiltrosEnMovil();
-    vigilarChat();
+    vigilarChat(sesion);
     return sesion;
   } catch (e) {
     return null;

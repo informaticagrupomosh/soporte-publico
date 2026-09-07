@@ -8,6 +8,7 @@ import 'pantallas/cargando.dart';
 import 'pantallas/chat_canal.dart';
 import 'pantallas/detalle.dart';
 import 'pantallas/lista.dart';
+import 'pantallas/moderacion.dart';
 import 'pantallas/servidor.dart';
 import 'servicios/enlaces.dart';
 import 'widgets/banner_conexion.dart';
@@ -79,6 +80,7 @@ class _RaizState extends State<_Raiz> with WidgetsBindingObserver {
     Push.ticketPendiente.addListener(_abrirPendiente);
     Enlaces.ticketPendiente.addListener(_abrirPendiente);
     Push.canalPendiente.addListener(_abrirCanalPendiente);
+    Push.moderacionPendiente.addListener(_abrirModeracionPendiente);
     // Un aviso pulsado con la app cerrada ya está esperando aquí.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _abrirPendiente();
@@ -92,6 +94,7 @@ class _RaizState extends State<_Raiz> with WidgetsBindingObserver {
     Push.ticketPendiente.removeListener(_abrirPendiente);
     Enlaces.ticketPendiente.removeListener(_abrirPendiente);
     Push.canalPendiente.removeListener(_abrirCanalPendiente);
+    Push.moderacionPendiente.removeListener(_abrirModeracionPendiente);
     super.dispose();
   }
 
@@ -120,6 +123,20 @@ class _RaizState extends State<_Raiz> with WidgetsBindingObserver {
     Push.canalPendiente.value = null;
     _navegador.currentState?.push(
       MaterialPageRoute(builder: (_) => PantallaCanal(localId: localId)),
+    );
+  }
+
+  /// Abre la cola de moderación, desde el aviso de que hay un mensaje
+  /// denunciado. Solo para quien puede verla: el aviso solo se le manda a los
+  /// administradores, pero entre que se manda y se pulsa puede haber cambiado
+  /// quién tiene la sesión abierta en este teléfono.
+  void _abrirModeracionPendiente() {
+    if (!Push.moderacionPendiente.value) return;
+    if (!widget.sesion.dentro) return;
+    Push.moderacionPendiente.value = false;
+    if (!(widget.sesion.usuario?.esAdmin ?? false)) return;
+    _navegador.currentState?.push(
+      MaterialPageRoute(builder: (_) => const Moderacion()),
     );
   }
 

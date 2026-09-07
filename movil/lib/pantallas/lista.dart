@@ -20,6 +20,7 @@ import 'detalle.dart';
 import 'informes.dart';
 import 'inventario.dart';
 import 'lavanderia.dart';
+import 'moderacion.dart';
 import 'nueva.dart';
 import 'tareas.dart';
 import 'usuarios.dart';
@@ -448,6 +449,33 @@ class _ListaTicketsState extends State<ListaTickets> with WidgetsBindingObserver
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+              // La cola de mensajes denunciados. Con su número, y por lo
+              // mismo que el del chat: el aviso llega al teléfono y quien lo
+              // atiende tiene horas, no días.
+              ListenableBuilder(
+                listenable: SesionScope.de(context).chat,
+                builder: (_, __) {
+                  final pendientes = SesionScope.de(context).chat.denunciasPendientes;
+                  return ListTile(
+                    leading: const Icon(Icons.flag_outlined),
+                    title: const Text('Moderación'),
+                    trailing: pendientes == 0
+                        ? null
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Tema.rojo,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              pendientes > 99 ? '99+' : '$pendientes',
+                              style: const TextStyle(color: Colors.white, fontSize: 11),
+                            ),
+                          ),
+                    onTap: () => ir(const Moderacion()),
+                  );
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.people_outline),

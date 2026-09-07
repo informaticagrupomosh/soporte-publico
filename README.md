@@ -38,8 +38,10 @@ como «Soporte». Está explicado en «Instalación».
 - **Chat de local** (`/chat.html`): un canal por cada local, al estilo de los de IRC, donde
   hablan los que están dados de alta en él. Con fotos, vídeos y notas de voz, con el estado de
   cada mensaje —enviando, enviado, recibido, leído— y aguantando que se vaya la conexión: lo
-  escrito sin cobertura sale solo al volver y no se duplica.
-- **Administración**: Grupos, Locales, Usuarios y Tareas programadas.
+  escrito sin cobertura sale solo al volver y no se duplica. Con moderación: se
+  avisa de un mensaje, el administrador lo revisa en una cola y puede suspender la cuenta de
+  quien se pase.
+- **Administración**: Grupos, Locales, Usuarios, Moderación y Tareas programadas.
 - **Notificaciones push** para la app móvil, por Firebase Cloud Messaging.
 - **App de Android y iPhone** (`movil/`), en Flutter, con avisos que llegan con la app cerrada,
   el chat de local con su copia guardada en el teléfono y **modo sin conexión**: se sigue
@@ -390,6 +392,12 @@ Los canales se llaman como los de IRC —`#local-1`, `#sede-central`— porque e
 mismo modelo: salas permanentes en las que se entra por pertenecer a un sitio y
 no por haber sido invitado.
 
+Cualquier mensaje con texto se puede **copiar**, sea de quien sea: en la web,
+con el botón que sale al pasar por encima del globo, junto a la cruz de borrar
+y la banderita de avisar; en el móvil, manteniéndolo pulsado. Copia el texto
+solo, sin nombre ni hora — se pega en un buscador, en un correo o en el campo
+de una incidencia, y ahí la cabecera sobra.
+
 ### Qué se puede mandar
 
 Texto, fotos, vídeos, documentos y **notas de voz**. Los formatos y los topes
@@ -488,6 +496,45 @@ entera hasta que entra a mirarlo no sirve de nada.
 
 El aviso de chat **abre el canal** al pulsarlo en la app móvil, igual que uno de
 incidencia abre su ficha.
+
+### Moderación
+
+En una conversación escribe gente, y a veces alguien se pasa. Hay tres cosas
+para eso, y las tres hacen falta —las dos tiendas las piden para publicar una
+app con chat, pero además sin ellas quien lo sufre no tiene a dónde acudir sin
+salirse de la aplicación—:
+
+- **Avisar de un mensaje.** En el globo de cualquier mensaje ajeno, la banderita
+  en la web y «Avisar al administrador» al mantenerlo pulsado en el móvil. Se
+  puede explicar por qué, o mandarlo en blanco. El mensaje **no se borra ni se
+  esconde**: lo decide quien lo recibe, que es quien tiene el contexto.
+- **La cola de moderación**, en Administración › Moderación, solo para el
+  administrador. Sale lo que hay pendiente, lo más viejo arriba, con el mensaje
+  señalado y quién avisó. Desde ahí se borra el mensaje, se suspende al autor o
+  se despacha el aviso sin tocar nada, que también es una decisión. El número
+  de pendientes va en la barra, junto a «Administración».
+
+  **Está también en la app**, con lo mismo dentro. No es un capricho: el plazo
+  para atender un aviso se cuenta en horas, el push que dice que hay algo que
+  mirar llega al teléfono, y quien lo recibe no está sentado delante de un
+  ordenador.
+- **A quien avisó se le contesta.** Cuando su aviso se resuelve —se haya
+  borrado el mensaje o no— le llega un push que lo dice, y que abre el canal
+  para que vea en qué quedó. Avisar de algo y que no conteste nadie es peor que
+  no tener el botón: la segunda vez ya no avisas.
+- **Suspender la cuenta**, en Administración › Usuarios o desde la propia cola.
+  Deja de poder entrar —por contraseña y por Office 365—, se le cierran las
+  sesiones abiertas en el momento y sale de los canales y de los desplegables
+  de asignación. Lo que ya escribió se queda: es historial.
+
+Suspender no es lo mismo que el **bloqueo por intentos fallidos**, aunque las
+dos cosas impidan entrar. Aquella la pone la máquina sola a los diez fallos y
+se levanta con «Reactivar acceso»; esta la pone una persona y solo esa persona
+la quita. Son dos columnas distintas justamente para que reactivar el acceso de
+alguien por despiste no lo devuelva a la conversación.
+
+Eliminar la cuenta casi nunca es la respuesta: una cuenta con incidencias a su
+nombre no se borra, porque se llevaría el historial por delante.
 
 ### En la app móvil
 
@@ -788,6 +835,9 @@ pantallas pedidas:
 - `chat_mensajes`, `chat_adjuntos`, `chat_borradores` y `chat_lecturas` — el chat de local.
   Aparte de `mensajes` porque no cuelgan de ninguna incidencia, y con su propia tabla de
   borradores porque admiten un formato más, el audio de las notas de voz.
+- `chat_denuncias` y `usuarios.suspendida` — la moderación del chat. La denuncia se guarda en
+  vez de mandarse solo por push porque un aviso que se lee una vez y desaparece no es una cola
+  de trabajo, y lo que las tiendas preguntan es si a esto se le contesta.
 
 ## Fuera de esta versión
 

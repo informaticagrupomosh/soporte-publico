@@ -41,7 +41,7 @@ const SE_QUEDAN = ['usuarios', 'sesiones', 'dispositivos'];
 // falla si se hace al revés.
 const SE_VAN = [
   'envio_lavanderia_items', 'envios_lavanderia',
-  'chat_adjuntos', 'chat_borradores', 'chat_lecturas', 'chat_mensajes',
+  'chat_denuncias', 'chat_adjuntos', 'chat_borradores', 'chat_lecturas', 'chat_mensajes',
   'adjuntos', 'adjuntos_borrador', 'mensajes', 'tickets',
   'tareas_programadas', 'activos',
   'subfamilias', 'familias', 'areas',
@@ -552,6 +552,28 @@ const llenar = db.transaction(() => {
     }
   }
 
+  // Una denuncia sin atender, para que la cola de moderación no esté vacía.
+  //
+  // Es lo que hay que poder enseñar si en la revisión preguntan cómo se
+  // atiende un aviso, y una pantalla en blanco no lo enseña. El mensaje
+  // señalado es uno de los de arriba, corriente a propósito: lo que se
+  // demuestra es el circuito, no una grosería inventada.
+  const señalado = db.prepare(`
+    SELECT id, autor_id FROM chat_mensajes
+    WHERE local_id = ? AND contenido LIKE 'Contad los manteles%'
+  `).get(locales['Hotel Playa']);
+  if (señalado && usuarios['demo.camarero']) {
+    db.prepare(`
+      INSERT INTO chat_denuncias (mensaje_id, denunciante_id, motivo, creado_en)
+      VALUES (?, ?, ?, ?)
+    `).run(
+      señalado.id,
+      usuarios['demo.camarero'],
+      'Creo que esto sobra, ya lo contamos ayer.',
+      haceDias(0, 11)
+    );
+  }
+
   return { creadas, reenganchadas };
 });
 
@@ -574,6 +596,7 @@ console.log(`
     ${cuenta('locales')} locales · ${cuenta('tickets')} incidencias · ${cuenta('mensajes')} mensajes
     ${cuenta('tareas_programadas')} tareas programadas · ${cuenta('activos')} activos · ${cuenta('empresas')} empresas
     ${cuenta('chat_mensajes')} mensajes de chat en los canales de los locales
+    ${cuenta('chat_denuncias')} denuncia sin atender, en Administración › Moderación
 
   Cuentas: ${cuenta('usuarios')} en total.`);
 

@@ -6,6 +6,13 @@ que falta no es programar, es la parte de Apple, y esa necesita un **Mac con
 Xcode** y una cuenta de **Apple Developer de pago** — los avisos push no
 funcionan sin ella.
 
+Para **subir a App Store Connect** hace falta además una versión concreta de
+todo: desde el 28 de abril de 2026 Apple solo acepta lo compilado con **Xcode
+26** y el **SDK de iOS 26**, y esa cadena pide **Flutter 3.38 o posterior**.
+Para probar en un teléfono propio vale cualquier Xcode reciente; es al subir
+donde se rechaza. Que el SDK sea el 26 no deja fuera a ningún teléfono: el
+mínimo lo sigue marcando `IPHONEOS_DEPLOYMENT_TARGET`, que está en iOS 15.
+
 Con eso delante son unos veinte minutos.
 
 ## Los pasos
@@ -191,6 +198,21 @@ flutter build ipa
 El `.ipa` sale en `build/ios/ipa/`. Se sube con **Transporter** o con
 `xcrun altool`, y desde TestFlight se reparte al equipo sin pasar por la
 revisión de App Store, que para una app interna es lo razonable.
+
+Antes de subir una que vaya a la tienda, una comprobación que no avisa:
+
+```bash
+codesign -d --entitlements :- build/ios/ipa/*.ipa 2>/dev/null | grep -A1 aps
+```
+
+Tiene que decir **`production`**. En `Runner.entitlements` pone `development`
+—es lo que escribe Xcode al añadir la capacidad— y lo normal es que Xcode lo
+sustituya solo al exportar para App Store. Si alguna vez no lo hiciera, la app
+saldría publicada sin que llegara un solo aviso, y eso no se descubre hasta que
+alguien se queja.
+
+Lo que hay que rellenar en App Store Connect —cuenta de revisión, etiquetas de
+privacidad, capturas, clasificación por edad— está en `TIENDA.md`.
 
 ## Lo que ya está resuelto
 

@@ -95,13 +95,14 @@ function puedeVer(user, localId) {
 /**
  * Quién está en el canal de un local. Es `auth.localesPermitidos` del revés:
  * en lugar de «qué locales son de esta persona», «qué personas son de este
- * local». Las cuentas bloqueadas se quedan fuera, que es lo que significa
- * estar bloqueado.
+ * local». Las cuentas sin acceso se quedan fuera —bloqueadas y suspendidas—:
+ * de esta lista salen los acuses y los avisos, y a quien no puede entrar no se
+ * le manda el chat al teléfono.
  */
 function miembrosDe(localId) {
   return db.prepare(`
     SELECT u.id, u.nombre, u.rol FROM usuarios u
-    WHERE u.bloqueada = 0 AND (
+    WHERE u.bloqueada = 0 AND u.suspendida = 0 AND (
       u.rol IN ('admin', 'gestor')
       OR EXISTS (SELECT 1 FROM usuario_local ul
                  WHERE ul.usuario_id = u.id AND ul.local_id = ?)
@@ -396,7 +397,15 @@ router.get('/resumen', (req, res) => {
     total += n;
     return { local_id: c.local_id, sin_leer: n };
   });
-  res.json({ sin_leer: total, canales: detalle });
+  // De paso, para el administrador, lo que tiene pendiente de moderar: esta
+  // llamada ya la hace la barra cada medio minuto desde cualquier pantalla, y
+  // añadir una segunda solo para contar denuncias sería pedir dos veces lo
+  // mismo. Sin esto, un aviso solo llegaría por push, que puede no estar
+  // configurado.
+  const denuncias = req.user.rol === 'admin'
+    ? db.prepare('SELECT COUNT(*) AS n FROM chat_denuncias WHERE resuelto_en IS NULL').get().n
+    : 0;
+  res.json({ sin_leer: total, canales: detalle, denuncias_pendientes: denuncias });
 });
 
 function canalVisible(req, res) {
@@ -529,10 +538,198 @@ router.delete('/mensajes/:id', (req, res) => {
     db.prepare("UPDATE chat_mensajes SET borrado_en = datetime('now'), contenido = '' WHERE id = ?")
       .run(id);
   }
+  resolverDenunciasDe(id, req.user.id);
   const mensaje = leerMensaje(id);
   difundir(fila.local_id, 'borrado', mensaje);
   res.json(mensaje);
 });
+
+// ---------- Denuncias ----------
+
+/**
+ * Avisar de un mensaje.
+ *
+ * Lo piden las dos tiendas para publicar una app con conversación —la
+ * directriz 1.2 de Apple y la política de contenido de Play—, pero además hace
+ * falta: en un chat de trabajo, quien se pasa lo hace delante de gente que no
+ * puede borrar nada y que hasta ahora no tenía a dónde acudir sin salirse de la
+ * aplicación.
+ *
+ * La denuncia no borra ni esconde el mensaje. Eso lo decide un administrador,
+ * que es quien tiene el contexto: aquí la mitad de lo que parece una ofensa es
+ * una broma entre compañeros que llevan diez años juntos.
+ */
+router.post('/mensajes/:id/denuncia', (req, res) => {
+  const id = num(req.params.id);
+  const fila = id && db.prepare(`${MENSAJE_SELECT} WHERE m.id = ?`).get(id);
+  if (!fila || !puedeVer(req.user, fila.local_id)) {
+    return res.status(404).json({ error: 'Mensaje no encontrado.' });
+  }
+  if (fila.autor_id === req.user.id) {
+    return badRequest(res, 'Ese mensaje es tuyo: si no lo quieres ahí, elimínalo.');
+  }
+  if (fila.borrado_en) return badRequest(res, 'Ese mensaje ya está eliminado.');
+
+  const motivo = texto(req.body.motivo).slice(0, 500);
+  // Una por persona y mensaje. Insistir no multiplica el aviso, y quien
+  // insiste no se lleva un error: para él ya está denunciado.
+  const hecho = db.prepare(`
+    INSERT OR IGNORE INTO chat_denuncias (mensaje_id, denunciante_id, motivo)
+    VALUES (?, ?, ?)
+  `).run(id, req.user.id, motivo);
+
+  if (hecho.changes) avisarALosAdministradores(fila, req.user, motivo);
+  res.status(201).json({ ok: true });
+});
+
+/**
+ * Avisa a los administradores de que hay algo que mirar.
+ *
+ * Va por push y sin excluir a nadie por estar conectado, al revés que los
+ * mensajes del chat: esto no es conversación, es una cola de trabajo con un
+ * plazo —Apple habla de veinticuatro horas— y perderlo por tener la pestaña
+ * abierta sería justo lo que no puede pasar.
+ */
+function avisarALosAdministradores(mensaje, quienDenuncia, motivo) {
+  const local = db.prepare('SELECT nombre FROM locales WHERE id = ?').get(mensaje.local_id);
+  const administradores = db.prepare(
+    "SELECT id FROM usuarios WHERE rol = 'admin' AND bloqueada = 0 AND suspendida = 0"
+  ).all().map((u) => u.id);
+  if (!administradores.length) return;
+
+  notificaciones.notificar(administradores, {
+    titulo: `Mensaje denunciado en ${local ? local.nombre : 'el chat'}`,
+    cuerpo: motivo
+      ? `${quienDenuncia.nombre}: ${motivo.slice(0, 120)}`
+      : `${quienDenuncia.nombre} ha avisado de un mensaje de ${mensaje.autor_nombre}.`,
+    datos: { tipo: 'denuncia', local_id: mensaje.local_id, mensaje_id: mensaje.id }
+  }, quienDenuncia.id);
+}
+
+/**
+ * La cola de moderación, para el administrador.
+ *
+ * Salen las pendientes primero y las más viejas arriba, que es el orden en el
+ * que hay que atenderlas. Las ya resueltas se piden aparte: sirven para
+ * demostrar que a esto se le contesta, que es lo que preguntan las tiendas.
+ */
+router.get('/denuncias', auth.soloAdmin, (req, res) => {
+  const resueltas = req.query.resueltas === '1';
+  const filas = db.prepare(`
+    SELECT d.id, d.mensaje_id, d.motivo, d.creado_en, d.resuelto_en,
+           d.denunciante_id, q.nombre AS denunciante_nombre,
+           r.nombre AS resuelto_por_nombre,
+           m.local_id, m.autor_id, m.contenido, m.borrado_en, m.creado_en AS mensaje_en,
+           a.nombre AS autor_nombre, a.suspendida AS autor_suspendida,
+           l.nombre AS local_nombre
+    FROM chat_denuncias d
+    JOIN usuarios q ON q.id = d.denunciante_id
+    JOIN chat_mensajes m ON m.id = d.mensaje_id
+    JOIN usuarios a ON a.id = m.autor_id
+    LEFT JOIN locales l ON l.id = m.local_id
+    LEFT JOIN usuarios r ON r.id = d.resuelto_por
+    WHERE d.resuelto_en IS ${resueltas ? 'NOT NULL' : 'NULL'}
+    ORDER BY d.id ${resueltas ? 'DESC' : 'ASC'}
+    LIMIT 200
+  `).all();
+
+  const adjuntos = adjuntosDe(filas.map((f) => f.mensaje_id));
+  res.json(filas.map((f) => ({
+    id: f.id,
+    creado_en: f.creado_en,
+    motivo: f.motivo,
+    resuelto_en: f.resuelto_en,
+    resuelto_por_nombre: f.resuelto_por_nombre,
+    denunciante: { id: f.denunciante_id, nombre: f.denunciante_nombre },
+    local: { id: f.local_id, nombre: f.local_nombre, canal: nombreCanal(f.local_nombre) },
+    mensaje: {
+      id: f.mensaje_id,
+      autor_id: f.autor_id,
+      autor_nombre: f.autor_nombre,
+      autor_suspendida: !!f.autor_suspendida,
+      contenido: f.borrado_en ? '' : f.contenido,
+      creado_en: f.mensaje_en,
+      borrado: !!f.borrado_en,
+      adjuntos: f.borrado_en ? [] : (adjuntos.get(f.mensaje_id) || [])
+    }
+  })));
+});
+
+/** Cuántas hay sin atender: es el aviso de la barra del administrador. */
+router.get('/denuncias/pendientes', auth.soloAdmin, (req, res) => {
+  const fila = db.prepare(
+    'SELECT COUNT(*) AS n FROM chat_denuncias WHERE resuelto_en IS NULL'
+  ).get();
+  res.json({ pendientes: fila.n });
+});
+
+/**
+ * Despachar una denuncia.
+ *
+ * Se resuelve tanto si se ha borrado el mensaje como si se ha decidido que no
+ * era para tanto: lo que la cola mide es que se ha mirado, no lo que se
+ * decidió. Quedan guardadas con quién y cuándo.
+ */
+router.post('/denuncias/:id/resolver', auth.soloAdmin, (req, res) => {
+  const id = num(req.params.id);
+  if (!id || !db.prepare('SELECT 1 FROM chat_denuncias WHERE id = ?').get(id)) {
+    return res.status(404).json({ error: 'Denuncia no encontrada.' });
+  }
+  cerrar('d.id = ?', [id], req.user.id);
+  res.json({ ok: true });
+});
+
+/**
+ * Al borrar un mensaje se dan por atendidas sus denuncias.
+ *
+ * Sin esto, la cola no bajaría nunca: el administrador borra lo denunciado y
+ * el aviso seguiría ahí pidiendo que alguien lo mire.
+ */
+function resolverDenunciasDe(mensajeId, usuarioId) {
+  cerrar('d.mensaje_id = ?', [mensajeId], usuarioId);
+}
+
+/**
+ * Cierra las denuncias que cumplan la condición y **avisa a quien las puso**.
+ *
+ * Lo segundo importa tanto como lo primero. Quien avisa de un mensaje se queda
+ * hoy sin saber si alguien lo miró, y avisar de algo y que no conteste nadie es
+ * peor que no tener el botón: la segunda vez ya no avisas. Además es lo que
+ * hace verificable el «se responde a los avisos» que se le promete a las
+ * tiendas — se ve desde dentro de la app, sin mirar ninguna base de datos.
+ *
+ * Se leen las filas antes de tocarlas porque después ya no se sabe cuáles
+ * cambiaron: hay que avisar solo a los de las que estaban pendientes, no a
+ * quien ya recibió su respuesta.
+ */
+function cerrar(condicion, parametros, administradorId) {
+  const pendientes = db.prepare(`
+    SELECT d.id, d.denunciante_id, m.id AS mensaje_id, m.local_id, m.borrado_en,
+           a.nombre AS autor_nombre
+    FROM chat_denuncias d
+    JOIN chat_mensajes m ON m.id = d.mensaje_id
+    JOIN usuarios a ON a.id = m.autor_id
+    WHERE ${condicion} AND d.resuelto_en IS NULL
+  `).all(...parametros);
+  if (!pendientes.length) return;
+
+  db.prepare(`
+    UPDATE chat_denuncias SET resuelto_en = datetime('now'), resuelto_por = ?
+    WHERE id IN (${pendientes.map(() => '?').join(',')})
+  `).run(administradorId, ...pendientes.map((d) => d.id));
+
+  for (const d of pendientes) {
+    notificaciones.notificar([d.denunciante_id], {
+      titulo: 'Tu aviso ha sido revisado',
+      cuerpo: d.borrado_en
+        ? `Se ha eliminado el mensaje de ${d.autor_nombre}.`
+        : `Un administrador ha revisado el mensaje de ${d.autor_nombre}.`,
+      // Lleva al canal: es donde se ve el resultado, con el hueco del mensaje
+      // borrado o con el mensaje todavía ahí.
+      datos: { tipo: 'denuncia_resuelta', local_id: d.local_id, mensaje_id: d.mensaje_id }
+    }, administradorId);
+  }
+}
 
 // Acuse de recibo: el mensaje ha llegado al aparato, aunque nadie lo esté
 // mirando. Lo manda el propio navegador en cuanto lo recibe por el flujo.

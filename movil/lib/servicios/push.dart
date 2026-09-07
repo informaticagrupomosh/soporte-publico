@@ -50,6 +50,11 @@ class Push {
   /// Lo mismo para los avisos del chat: el local cuyo canal hay que abrir.
   static final ValueNotifier<int?> canalPendiente = ValueNotifier(null);
 
+  /// Y para el aviso de que hay un mensaje denunciado, que lleva a la cola de
+  /// moderación. No hace falta decir cuál: se atiende la cola entera, no una
+  /// denuncia suelta.
+  static final ValueNotifier<bool> moderacionPendiente = ValueNotifier(false);
+
   /// Se llama desde `main()` antes de pintar nada.
   static Future<void> preparar() async {
     if (_iniciado) return;
@@ -102,6 +107,10 @@ class Push {
         // El aviso de una incidencia lleva su número; el del chat, «chat:» y el
         // del local. Sin prefijo es una incidencia, como ha sido siempre.
         final carga = respuesta.payload ?? '';
+        if (carga == 'moderacion') {
+          moderacionPendiente.value = true;
+          return;
+        }
         if (carga.startsWith('chat:')) {
           canalPendiente.value = int.tryParse(carga.substring(5));
           return;
@@ -211,8 +220,13 @@ class Push {
     if (aviso == null) return;
 
     final ticketId = int.tryParse('${mensaje.data['ticket_id'] ?? ''}');
-    final esChat = '${mensaje.data['tipo'] ?? ''}' == 'chat';
+    final tipo = '${mensaje.data['tipo'] ?? ''}';
+    final esChat = tipo == 'chat';
     final localId = int.tryParse('${mensaje.data['local_id'] ?? ''}');
+    // Un mensaje denunciado lleva a la cola; la respuesta a un aviso propio,
+    // al canal, que es donde se ve en qué quedó.
+    final esModeracion = tipo == 'denuncia';
+    final alCanal = tipo == 'denuncia_resuelta' && localId != null;
 
     await _locales.show(
       // Un aviso por incidencia y otro por canal: los mensajes seguidos del
@@ -239,14 +253,23 @@ class Push {
         ),
         iOS: const DarwinNotificationDetails(),
       ),
-      payload: esChat && localId != null ? 'chat:$localId' : ticketId?.toString(),
+      payload: esModeracion
+          ? 'moderacion'
+          : (esChat || alCanal) && localId != null
+              ? 'chat:$localId'
+              : ticketId?.toString(),
     );
   }
 
   /// A dónde lleva un aviso pulsado: al canal, si es del chat, y a la
   /// incidencia en los demás casos.
   static void _abrirTicketDe(Map<String, dynamic> datos) {
-    if ('${datos['tipo'] ?? ''}' == 'chat') {
+    final tipo = '${datos['tipo'] ?? ''}';
+    if (tipo == 'denuncia') {
+      moderacionPendiente.value = true;
+      return;
+    }
+    if (tipo == 'chat' || tipo == 'denuncia_resuelta') {
       final localId = int.tryParse('${datos['local_id'] ?? ''}');
       if (localId != null) canalPendiente.value = localId;
       return;

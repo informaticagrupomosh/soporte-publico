@@ -75,6 +75,54 @@ class _UsuariosState extends State<Usuarios> {
     }
   }
 
+  /// Suspender y levantar la suspensión.
+  ///
+  /// Está aquí y no solo en la web porque desde la cola de moderación se puede
+  /// suspender con el teléfono, y una puerta que solo se cierra desde el móvil
+  /// y solo se abre desde el ordenador es una trampa.
+  Future<void> _suspender(Cuenta cuenta) async {
+    final seguro = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: Text('Suspender a ${cuenta.nombre}'),
+        content: const Text(
+          'Dejará de poder entrar, por contraseña y por Office 365, y se '
+          'cerrarán las sesiones que tenga abiertas. Sus incidencias y sus '
+          'mensajes anteriores se quedan como están.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogo, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Tema.rojo),
+            onPressed: () => Navigator.pop(dialogo, true),
+            child: const Text('Suspender'),
+          ),
+        ],
+      ),
+    );
+    if (seguro != true || !mounted) return;
+
+    try {
+      await SesionScope.de(context).api.post('/api/usuarios/${cuenta.id}/suspender');
+      _cargar();
+    } on ErrorApi catch (e) {
+      _avisar(e.mensaje, error: true);
+    }
+  }
+
+  Future<void> _reactivar(Cuenta cuenta) async {
+    try {
+      await SesionScope.de(context).api.post('/api/usuarios/${cuenta.id}/reactivar');
+      _cargar();
+      _avisar('${cuenta.nombre} vuelve a poder entrar.');
+    } on ErrorApi catch (e) {
+      _avisar(e.mensaje, error: true);
+    }
+  }
+
   Future<void> _borrar(Cuenta cuenta) async {
     final seguro = await showDialog<bool>(
       context: context,
@@ -168,8 +216,12 @@ class _UsuariosState extends State<Usuarios> {
                     const Distintivo(texto: 'Office 365', color: Tema.gris),
                     const SizedBox(width: 6),
                   ],
-                  if (c.bloqueada)
+                  if (c.bloqueada) ...[
                     const Distintivo(texto: 'Bloqueada', color: Tema.rojo, suave: false),
+                    const SizedBox(width: 6),
+                  ],
+                  if (c.suspendida)
+                    const Distintivo(texto: 'Suspendida', color: Tema.rojo, suave: false),
                 ],
               ),
               const SizedBox(height: 4),
@@ -201,7 +253,21 @@ class _UsuariosState extends State<Usuarios> {
                       icon: const Icon(Icons.lock_open, size: 16),
                       label: const Text('Desbloquear', style: TextStyle(fontSize: 12.5)),
                     ),
-                  // Nadie se borra a sí mismo: el servidor tampoco lo permite.
+                  // Nadie se suspende ni se borra a sí mismo: el servidor
+                  // tampoco lo permite.
+                  if (c.id != yo)
+                    c.suspendida
+                        ? TextButton.icon(
+                            onPressed: () => _reactivar(c),
+                            icon: const Icon(Icons.check_circle_outline, size: 16),
+                            label: const Text('Levantar', style: TextStyle(fontSize: 12.5)),
+                          )
+                        : TextButton.icon(
+                            onPressed: () => _suspender(c),
+                            icon: const Icon(Icons.block, size: 16, color: Tema.rojo),
+                            label: const Text('Suspender',
+                                style: TextStyle(fontSize: 12.5, color: Tema.rojo)),
+                          ),
                   if (c.id != yo)
                     TextButton.icon(
                       onPressed: () => _borrar(c),

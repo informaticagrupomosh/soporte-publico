@@ -599,6 +599,18 @@ if (!columnas('usuarios').includes('entra_oid')) {
 }
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_entra ON usuarios(entra_oid)');
 
+// Cuentas suspendidas por un administrador.
+//
+// No es lo mismo que `bloqueada`, que la pone sola la máquina tras diez
+// intentos fallidos y se limpia al reactivar el acceso: esto lo decide una
+// persona, y tiene que sobrevivir a un «reactivar acceso» hecho por
+// despiste. Es lo que permite echar de la conversación a quien se pasa sin
+// borrar la cuenta —borrarla no se puede, porque se llevaría por delante el
+// historial de incidencias que tenga a su nombre—.
+if (!columnas('usuarios').includes('suspendida')) {
+  db.exec('ALTER TABLE usuarios ADD COLUMN suspendida INTEGER NOT NULL DEFAULT 0');
+}
+
 // Las entradas con Office 365 a medio hacer: lo que hay que recordar entre que
 // mandamos a alguien a Microsoft y Microsoft lo devuelve. El «estado» ata la
 // vuelta con la ida, el «nonce» ata el identificador con esta entrada concreta
@@ -696,6 +708,32 @@ CREATE TABLE IF NOT EXISTS chat_borradores (
 -- 120» dice lo mismo que ciento veinte acuses y no crece con el uso. El estado
 -- de un mensaje sale de comparar su id con el mayor de los números de los
 -- demás: recibido si alguien lo tiene recibido, leído si alguien lo ha leído.
+-- Los mensajes que alguien ha denunciado.
+--
+-- Existe porque las dos tiendas lo exigen —la directriz 1.2 de Apple pide que
+-- se pueda avisar de un mensaje y que a ese aviso se le conteste—, pero
+-- también porque sin una lista el aviso se pierde: un push a los
+-- administradores se lee una vez y ya no está. Aquí queda hasta que alguien lo
+-- resuelve, y con la hora en que llegó, que es lo que se mira para saber si se
+-- está contestando a tiempo.
+--
+-- Una denuncia por persona y mensaje: quien insista no multiplica el aviso.
+CREATE TABLE IF NOT EXISTS chat_denuncias (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  mensaje_id INTEGER NOT NULL REFERENCES chat_mensajes(id) ON DELETE CASCADE,
+  denunciante_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  motivo TEXT NOT NULL DEFAULT '',
+  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Puestas las dos a la vez cuando un administrador la despacha, haya
+  -- borrado el mensaje o haya decidido que no era para tanto.
+  resuelto_en TEXT,
+  resuelto_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  UNIQUE (mensaje_id, denunciante_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_denuncias_pendientes
+  ON chat_denuncias(resuelto_en, id);
+
 CREATE TABLE IF NOT EXISTS chat_lecturas (
   local_id INTEGER NOT NULL REFERENCES locales(id) ON DELETE CASCADE,
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,

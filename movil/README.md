@@ -197,7 +197,33 @@ sin leer, y el mismo número aparece en cada canal de la lista.
 Se puede mandar texto, fotos, vídeos, documentos y **notas de voz**: el botón
 del micrófono graba y, al parar, la nota se manda sola. Cada mensaje propio
 lleva su estado en la esquina —⏱ enviando, ✓ enviado, ✓✓ recibido, ✓✓ en azul
-leído, ↻ no se pudo mandar y se reintenta—, y se elimina manteniéndolo pulsado.
+leído, ↻ no se pudo mandar y se reintenta—.
+
+**Manteniendo pulsado un mensaje** sale lo que se puede hacer con él: **copiar
+su texto**, eliminar el propio —y cualquiera, si quien mira es administrador— y
+**avisar al administrador** de uno ajeno, con un motivo que se puede dejar en
+blanco.
+
+Copiar va la primera y está en todos: en un chat de trabajo se pasan
+referencias de pedido, matrículas y números de serie, y hasta ahora había que
+teclearlos a mano mirando la pantalla. Se copia solo el texto, sin el nombre ni
+la hora, porque lo que se copia se pega en otro sitio y ahí la cabecera
+estorba. Funciona también con un mensaje que sigue en la cola de salida, que es
+cuando más falta hace: algo que no ha salido y no quieres volver a escribir. El
+aviso no borra ni esconde nada; va a la cola de moderación, donde se decide. Si
+se avisa sin cobertura, espera en la cola de salida y sale al volver la línea,
+como un mensaje más.
+
+Cuando ese aviso se resuelve llega un push —«Tu aviso ha sido revisado»— que
+abre el canal, para ver en qué quedó: el mensaje borrado deja su hueco.
+
+**Los administradores tienen la cola en el menú**, en Administración ›
+Moderación, con su número de pendientes al lado. Sale lo mismo que en la web
+—el mensaje señalado, quién avisó y cuándo— y se puede hacer lo mismo: borrar
+el mensaje, suspender a quien lo escribió o dar el aviso por atendido. Está en
+la app porque el plazo son horas y el push llega al teléfono: obligar a
+encender un ordenador para contestar era pedirle a la cola que se quedara sin
+atender.
 
 Lo que la app hace distinto de la web, porque un teléfono no es un navegador:
 
@@ -256,9 +282,34 @@ en que se usan: la primera nota de voz y la primera descarga al carrete.
 
 | Qué | Para qué | Cómo se comprueba |
 |---|---|---|
-| **Flutter 3.22 o posterior** | compilar la app | `flutter --version` |
+| **Flutter 3.38** | compilar la app | `flutter --version` |
 | **Android Studio** | el SDK de Android, el emulador y los drivers | |
 | **JDK 21** | lo que entienden Gradle 8 y el plugin de Android | ver más abajo |
+
+La versión de Flutter está **fijada en `movil/.fvmrc`**, y no es por capricho:
+
+- Por abajo, la 3.24 es el mínimo que compila (lo pide `record` 6, el que graba
+  las notas de voz) y **para subir a la App Store hace falta la 3.38**, que es
+  la primera que trae Xcode 26 y el SDK de iOS 26 — obligatorios desde abril de
+  2026.
+- Por arriba, la 3.47 saca **Material y Cupertino del SDK**, a paquetes
+  aparte. No rompe todavía, pero es tocar los imports de todo `lib/` para
+  ganar nada que esta app necesite. Cuando toque, se hace a propósito y en su
+  propio cambio, no de rebote al preparar una subida.
+
+Con [FVM](https://fvm.app) esa versión la usan las dos máquinas —la de Android
+y el Mac— sin que nadie tenga que acordarse:
+
+```bash
+dart pub global activate fvm     # o: brew tap leoafarias/fvm && brew install fvm
+cd movil
+fvm install                      # lee .fvmrc
+fvm flutter --version
+```
+
+A partir de ahí, `fvm flutter …` en lugar de `flutter …`. Sin FVM también se
+puede, teniendo instalada esa versión a mano; lo que no vale es dar por buena
+«la que hubiera».
 
 Ojo con el JDK: **el que trae Android Studio puede ser demasiado nuevo** y
 entonces no sirve. Está explicado en [La versión de Java](#la-versión-de-java),

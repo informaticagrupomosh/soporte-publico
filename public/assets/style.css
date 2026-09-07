@@ -840,12 +840,18 @@ body {
 /* La papelera de un mensaje propio solo aparece al pasar por encima: si
    estuviera siempre, cada globo llevaría un botón. */
 
+.chat-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-right: auto;
+}
+
 .chat-borrar {
   border: 0;
   background: none;
   color: #adb5bd;
   padding: 0;
-  margin-right: auto;
   line-height: 1;
   font-size: 0.95rem;
   visibility: hidden;
@@ -857,6 +863,46 @@ body {
 
 .chat-borrar:hover {
   color: #dc3545;
+}
+
+/* Avisar de un mensaje ajeno. Va escondido como el borrar: son acciones que
+   solo se buscan cuando hacen falta, y a la vista ensuciarían cada globo. */
+.chat-denunciar {
+  border: 0;
+  background: none;
+  color: #adb5bd;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.8rem;
+  visibility: hidden;
+}
+
+.chat-burbuja:hover .chat-denunciar {
+  visibility: visible;
+}
+
+.chat-denunciar:hover {
+  color: #dc3545;
+}
+
+/* Copiar el texto. Escondida como las otras dos, pero en gris al pasar por
+   encima y no en rojo: no cambia nada, solo se lleva una copia. */
+.chat-copiar {
+  border: 0;
+  background: none;
+  color: #adb5bd;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.8rem;
+  visibility: hidden;
+}
+
+.chat-burbuja:hover .chat-copiar {
+  visibility: visible;
+}
+
+.chat-copiar:hover {
+  color: #212529;
 }
 
 /* Lo que se manda por el chat se ve en el propio globo. */

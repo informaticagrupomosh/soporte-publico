@@ -427,3 +427,85 @@ class EnvioPendiente {
         adjuntos: vista,
       );
 }
+
+/// Un mensaje del que alguien ha avisado, tal y como lo devuelve
+/// `/api/chat/denuncias`.
+///
+/// No se guarda en la copia local, al revés que los mensajes: es una cola de
+/// trabajo del administrador, tiene que estar al día y se mira poco. Pintarla
+/// vieja sería peor que no pintarla.
+class DenunciaChat {
+  const DenunciaChat({
+    required this.id,
+    required this.motivo,
+    required this.creadoEn,
+    required this.resueltoEn,
+    required this.resueltoPor,
+    required this.denunciante,
+    required this.localId,
+    required this.localNombre,
+    required this.canal,
+    required this.mensajeId,
+    required this.autorId,
+    required this.autorNombre,
+    required this.autorSuspendida,
+    required this.contenido,
+    required this.mensajeEn,
+    required this.borrado,
+    required this.adjuntos,
+  });
+
+  final int id;
+
+  /// Lo que escribió quien avisó. Puede estar vacío: es opcional a propósito.
+  final String motivo;
+
+  final DateTime? creadoEn;
+  final DateTime? resueltoEn;
+  final String? resueltoPor;
+  final String denunciante;
+
+  final int localId;
+  final String localNombre;
+  final String canal;
+
+  final int mensajeId;
+  final int autorId;
+  final String autorNombre;
+  final bool autorSuspendida;
+  final String contenido;
+  final DateTime? mensajeEn;
+  final bool borrado;
+  final List<AdjuntoChat> adjuntos;
+
+  bool get pendiente => resueltoEn == null;
+
+  factory DenunciaChat.desdeJson(Map<String, dynamic> j) {
+    final mensaje = (j['mensaje'] ?? const {}) as Map<String, dynamic>;
+    final local = (j['local'] ?? const {}) as Map<String, dynamic>;
+    final quien = (j['denunciante'] ?? const {}) as Map<String, dynamic>;
+    final mensajeId = _entero(mensaje['id']) ?? 0;
+    return DenunciaChat(
+      id: _entero(j['id']) ?? 0,
+      motivo: '${j['motivo'] ?? ''}',
+      creadoEn: fechaUtc(j['creado_en']),
+      resueltoEn: fechaUtc(j['resuelto_en']),
+      resueltoPor: j['resuelto_por_nombre'] as String?,
+      denunciante: '${quien['nombre'] ?? ''}',
+      localId: _entero(local['id']) ?? 0,
+      localNombre: '${local['nombre'] ?? ''}',
+      canal: '${local['canal'] ?? ''}',
+      mensajeId: mensajeId,
+      autorId: _entero(mensaje['autor_id']) ?? 0,
+      autorNombre: '${mensaje['autor_nombre'] ?? ''}',
+      autorSuspendida: mensaje['autor_suspendida'] == true,
+      contenido: '${mensaje['contenido'] ?? ''}',
+      mensajeEn: fechaUtc(mensaje['creado_en']),
+      borrado: mensaje['borrado'] == true,
+      adjuntos: [
+        for (final a in (mensaje['adjuntos'] as List? ?? const []))
+          AdjuntoChat.desdeJson(a as Map<String, dynamic>, mensajeId),
+      ],
+    );
+  }
+}

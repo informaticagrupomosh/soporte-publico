@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -503,9 +504,13 @@ class _PantallaCanalState extends State<PantallaCanal> with WidgetsBindingObserv
         seguido: seguido,
         estado: _estadoDe(m),
         api: api,
-        alBorrar: m.autorId == yo && !m.borrado && !m.pendiente
-            ? () => _borrar(m)
-            : null,
+        // Uno borrado no tiene menú: no queda nada que copiar ni que hacer.
+        // Uno todavía en la cola, solo si lleva texto: es lo único que se
+        // puede hacer con él, y el resto de opciones necesitan que exista en
+        // el servidor.
+        alMantenerPulsado: m.borrado || (m.pendiente && m.contenido.trim().isEmpty)
+            ? null
+            : () => _menuDe(m),
       ));
     }
     return filas;
@@ -520,6 +525,104 @@ class _PantallaCanalState extends State<PantallaCanal> with WidgetsBindingObserv
     if (mismoDia(fecha, hoy)) return 'Hoy';
     if (mismoDia(fecha, ayer)) return 'Ayer';
     return DateFormat('d MMM y', 'es').format(fecha);
+  }
+
+  /// Lo que se puede hacer con un mensaje, al mantenerlo pulsado.
+  ///
+  /// Copiar el texto, de cualquiera. Borrar el propio —y cualquiera, si quien
+  /// mira es administrador—. Y avisar al administrador de uno ajeno.
+  ///
+  /// Copiar va la primera porque es la que más se usa y la única que no cambia
+  /// nada: en un chat de trabajo se pasan referencias de pedido, matrículas y
+  /// números de serie, y hasta ahora había que teclearlos a mano mirando la
+  /// pantalla.
+  Future<void> _menuDe(MensajeChat mensaje) async {
+    final yo = SesionScope.de(context).usuario;
+    if (yo == null) return;
+    final propio = mensaje.autorId == yo.id;
+    final hayTexto = mensaje.contenido.trim().isNotEmpty;
+    // Un mensaje que todavía está en la cola no se puede borrar ni denunciar
+    // —no tiene número en el servidor—, pero su texto sí se copia. Es
+    // justamente cuando más falta hace: algo que no ha salido y no quieres
+    // volver a escribir.
+    final enviado = !mensaje.pendiente;
+
+    final que = await showModalBottomSheet<String>(
+      context: context,
+      // Con el móvil de lado, la hoja se queda en poco más de doscientos
+      // píxeles de alto y tres opciones no caben: que ruede antes que
+      // desbordar.
+      builder: (hoja) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hayTexto)
+                ListTile(
+                  leading: const Icon(Icons.copy_all_outlined, color: Tema.gris),
+                  title: const Text('Copiar el texto'),
+                  onTap: () => Navigator.pop(hoja, 'copiar'),
+                ),
+              if (enviado && (propio || yo.esAdmin))
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Tema.rojo),
+                  title: const Text('Eliminar el mensaje'),
+                  subtitle: const Text('Deja de verse para todos.'),
+                  onTap: () => Navigator.pop(hoja, 'borrar'),
+                ),
+              if (enviado && !propio)
+                ListTile(
+                  leading: const Icon(Icons.flag_outlined, color: Tema.rojo),
+                  title: const Text('Avisar al administrador'),
+                  subtitle: const Text('Lo revisará y decidirá.'),
+                  onTap: () => Navigator.pop(hoja, 'denunciar'),
+                ),
+              ListTile(
+                leading: const Icon(Icons.close, color: Tema.gris),
+                title: const Text('Cancelar'),
+                onTap: () => Navigator.pop(hoja),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted || que == null) return;
+    if (que == 'copiar') return _copiar(mensaje);
+    if (que == 'borrar') return _borrar(mensaje);
+    if (que == 'denunciar') return _denunciar(mensaje);
+  }
+
+  /// El texto del mensaje al portapapeles.
+  ///
+  /// Solo el texto: ni el nombre de quien escribió ni la hora. Lo que se copia
+  /// casi siempre se va a pegar en otro sitio —un buscador, un correo, el
+  /// campo de una incidencia— y ahí la cabecera estorba.
+  Future<void> _copiar(MensajeChat mensaje) async {
+    await Clipboard.setData(ClipboardData(text: mensaje.contenido.trim()));
+    _avisar('Texto copiado.');
+  }
+
+  /// Avisa de un mensaje ajeno, con un motivo que se puede dejar en blanco.
+  ///
+  /// Obligar a escribir algo hace que quien tenga prisa no avise, y lo que
+  /// importa es que el aviso llegue: el mensaje señalado ya dice bastante.
+  Future<void> _denunciar(MensajeChat mensaje) async {
+    // Nulo es «cancelar»; la cadena vacía, «avisar sin decir por qué», que es
+    // una respuesta válida.
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (_) => _DialogoDenuncia(autor: mensaje.autorNombre),
+    );
+    if (!mounted || motivo == null) return;
+
+    try {
+      await _chat!.denunciar(mensaje.id, motivo);
+      _avisar('Avisado. El administrador lo revisará.');
+    } on ErrorApi catch (e) {
+      _avisar(e.mensaje, error: true);
+    }
   }
 
   Future<void> _borrar(MensajeChat mensaje) async {
@@ -694,6 +797,75 @@ class _CintaFecha extends StatelessWidget {
 
 /// Un mensaje: lo propio a la derecha y lo de los demás a la izquierda, igual
 /// que el hilo de una incidencia y que la web.
+/// El diálogo de «avisar al administrador».
+///
+/// Es un widget aparte, y no un `AlertDialog` construido dentro de una
+/// función, por una razón concreta: el controlador del campo de texto tiene
+/// que vivir exactamente lo que viva el campo. Soltándolo en cuanto
+/// `showDialog` devuelve —que fue como estaba— se suelta demasiado pronto: el
+/// diálogo sigue en el árbol mientras se desvanece, se reconstruye una vez más
+/// y se encuentra el controlador ya tirado.
+class _DialogoDenuncia extends StatefulWidget {
+  const _DialogoDenuncia({required this.autor});
+
+  final String autor;
+
+  @override
+  State<_DialogoDenuncia> createState() => _DialogoDenunciaState();
+}
+
+class _DialogoDenunciaState extends State<_DialogoDenuncia> {
+  final _motivo = TextEditingController();
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      // Con el teclado abierto, a un diálogo con un campo de tres líneas y su
+      // contador no le queda alto: sin esto desborda por abajo.
+      scrollable: true,
+      title: const Text('Avisar al administrador'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Verá este mensaje de ${widget.autor} y decidirá qué hacer. '
+            'El mensaje no se borra ahora.',
+            style: const TextStyle(fontSize: 13.5, color: Tema.gris),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _motivo,
+            autofocus: true,
+            maxLines: 3,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              hintText: '¿Qué pasa con él? (opcional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _motivo.text.trim()),
+          child: const Text('Avisar'),
+        ),
+      ],
+    );
+  }
+}
+
 class _Globo extends StatelessWidget {
   const _Globo({
     super.key,
@@ -702,7 +874,7 @@ class _Globo extends StatelessWidget {
     required this.seguido,
     required this.estado,
     required this.api,
-    this.alBorrar,
+    this.alMantenerPulsado,
   });
 
   final MensajeChat mensaje;
@@ -710,14 +882,14 @@ class _Globo extends StatelessWidget {
   final bool seguido;
   final EstadoMensaje estado;
   final Api api;
-  final VoidCallback? alBorrar;
+  final VoidCallback? alMantenerPulsado;
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: propio ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
-        onLongPress: alBorrar,
+        onLongPress: alMantenerPulsado,
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.82,

@@ -42,6 +42,25 @@ const ESPERAS = [[3, 60], [6, 180], [9, 300]];
 const INTENTOS_MAX = 10;
 const MENSAJE_BLOQUEADA = 'Contacta con el administrador de la web para reactivar tu acceso.';
 
+// Una cuenta suspendida no se recupera sola ni con la contraseña correcta: la
+// suspendió alguien y solo esa persona la levanta. Por eso el mensaje no
+// promete nada ni dice por qué.
+const MENSAJE_SUSPENDIDA = 'Tu cuenta está suspendida. Contacta con el administrador de la web.';
+
+/**
+ * Por qué esta cuenta no puede entrar, o `null` si puede.
+ *
+ * Se pregunta desde los tres sitios por los que se entra —contraseña, Office
+ * 365 y el vale de la app—, para que ninguno se quede con la mitad de las
+ * comprobaciones: una puerta que se olvide de mirar es una puerta abierta.
+ */
+function motivoSinAcceso(fila) {
+  if (!fila) return null;
+  if (fila.suspendida) return MENSAJE_SUSPENDIDA;
+  if (fila.bloqueada) return MENSAJE_BLOQUEADA;
+  return null;
+}
+
 function mensajeEspera(segundos) {
   const minutos = Math.ceil(segundos / 60);
   const cuanto = segundos < 60
@@ -152,7 +171,7 @@ function middlewareSesion(req, res, next) {
   if (token) {
     const sesion = db.prepare(`
       SELECT s.usuario_id FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
-      WHERE s.token = ? AND u.bloqueada = 0
+      WHERE s.token = ? AND u.bloqueada = 0 AND u.suspendida = 0
     `).get(token);
     if (sesion) {
       req.user = cargarUsuario(sesion.usuario_id);
@@ -163,7 +182,8 @@ function middlewareSesion(req, res, next) {
 }
 
 // Los catálogos y las cuentas son cosa del administrador.
-const PAGINAS_ADMIN = ['/usuarios.html', '/grupos.html', '/locales.html', '/familias.html', '/empresas.html'];
+const PAGINAS_ADMIN = ['/usuarios.html', '/grupos.html', '/locales.html', '/familias.html',
+  '/empresas.html', '/moderacion.html'];
 // El programador lo lleva también el gestor.
 const PAGINAS_TAREAS = ['/tareas.html'];
 // El calendario, en cambio, también lo puede mirar un técnico: es de solo lectura.
@@ -479,6 +499,8 @@ module.exports = {
   hashPassword,
   verifyPassword,
   MENSAJE_BLOQUEADA,
+  MENSAJE_SUSPENDIDA,
+  motivoSinAcceso,
   mensajeEspera,
   segundosDeEspera,
   registrarFallo,

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moderación — Incidencias</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="bg-light">
+  <nav id="navbar"></nav>
+
+  <div class="container py-4">
+    <div id="alert-area"></div>
+
+    <div class="d-flex align-items-center mb-2">
+      <div class="chart-title mb-0">Mensajes denunciados</div>
+      <div class="btn-group btn-group-sm ms-auto" role="group">
+        <button type="button" class="btn btn-dark" id="btn-pendientes">Pendientes</button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-resueltas">Resueltas</button>
+      </div>
+    </div>
+
+    <p class="text-muted small">
+      Aquí llega lo que alguien ha señalado desde el chat. Míralo pronto: las
+      tiendas dan por buena una app con conversación si a los avisos se les
+      contesta, y el plazo del que hablan es de un día.
+    </p>
+
+    <div id="lista"><div class="text-muted py-4">Cargando…</div></div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/assets/app.js"></script>
+  <script>
+    let verResueltas = false;
+    const lista = document.getElementById('lista');
+
+    async function init() {
+      await initPagina('Moderación');
+      document.getElementById('btn-pendientes').addEventListener('click', () => cambiar(false));
+      document.getElementById('btn-resueltas').addEventListener('click', () => cambiar(true));
+      cargar();
+    }
+
+    function cambiar(resueltas) {
+      if (verResueltas === resueltas) return;
+      verResueltas = resueltas;
+      document.getElementById('btn-pendientes').className =
+        resueltas ? 'btn btn-outline-secondary' : 'btn btn-dark';
+      document.getElementById('btn-resueltas').className =
+        resueltas ? 'btn btn-dark' : 'btn btn-outline-secondary';
+      cargar();
+    }
+
+    async function cargar() {
+      lista.innerHTML = '<div class="text-muted py-4">Cargando…</div>';
+      try {
+        render(await fetchJSON(`/api/chat/denuncias${verResueltas ? '?resueltas=1' : ''}`));
+      } catch (e) {
+        lista.innerHTML = '<div class="text-danger py-4">Error al cargar.</div>';
+        alertaPagina(e.message);
+      }
+    }
+
+    // Lo que se ve del mensaje señalado. Los adjuntos se nombran pero no se
+    // pintan: hay que poder mirar la cola sin que se abra en pantalla algo que
+    // justamente han denunciado.
+    function adjuntosHtml(m) {
+      if (!m.adjuntos.length) return '';
+      return `<div class="mt-2">${m.adjuntos.map((a) =>
+        `<a class="mono-chip chip-enlace me-1" href="/api/chat/adjuntos/${a.id}"
+            target="_blank" rel="noopener">${esc(a.nombre)}</a>`).join('')}</div>`;
+    }
+
+    function render(denuncias) {
+      if (!denuncias.length) {
+        lista.innerHTML = `<div class="bg-white border rounded p-4 text-center text-muted">${
+          verResueltas ? 'Todavía no se ha resuelto ninguna.' : 'No hay nada pendiente.'
+        }</div>`;
+        return;
+      }
+
+      lista.innerHTML = denuncias.map((d) => `
+        <div class="bg-white border rounded p-3 mb-2">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="mono-chip">${esc(d.local.canal)}</span>
+            <span class="text-muted small">
+              ${esc(d.denunciante.nombre)} avisó ${esc(fmtFechaHora(d.creado_en))}
+            </span>
+            ${d.mensaje.borrado ? '<span class="badge text-bg-light border">Mensaje eliminado</span>' : ''}
+            ${d.mensaje.autor_suspendida ? '<span class="badge bg-danger">Autor suspendido</span>' : ''}
+            ${d.resuelto_en ? `<span class="badge text-bg-light border">Resuelta por ${
+              esc(d.resuelto_por_nombre || 'un administrador')
+            }</span>` : ''}
+          </div>
+
+          ${d.motivo ? `<div class="mb-2">«${esc(d.motivo)}»</div>` : ''}
+
+          <div class="border-start border-3 ps-3 py-1">
+            <div class="fw-medium small">${esc(d.mensaje.autor_nombre)}
+              <span class="text-muted fw-normal">· ${esc(fmtFechaHora(d.mensaje.creado_en))}</span>
+            </div>
+            <div class="${d.mensaje.borrado ? 'text-muted fst-italic' : ''}">${
+              d.mensaje.borrado ? 'Eliminado' : esc(d.mensaje.contenido) || '<span class="text-muted">Sin texto</span>'
+            }</div>
+            ${adjuntosHtml(d.mensaje)}
+          </div>
+
+          ${d.resuelto_en ? '' : `
+            <div class="mt-3 d-flex flex-wrap gap-3">
+              ${d.mensaje.borrado ? '' :
+                `<button class="btn btn-sm btn-link text-danger p-0" data-borrar="${d.mensaje.id}">Eliminar el mensaje</button>`}
+              ${d.mensaje.autor_suspendida ? '' :
+                `<button class="btn btn-sm btn-link text-danger p-0" data-suspender="${d.mensaje.autor_id}"
+                         data-nombre="${esc(d.mensaje.autor_nombre)}">Suspender al autor</button>`}
+              <button class="btn btn-sm btn-link text-dark p-0" data-resolver="${d.id}">Marcar como resuelta</button>
+            </div>`}
+        </div>`).join('');
+
+      lista.querySelectorAll('[data-borrar]').forEach((b) =>
+        b.addEventListener('click', () => borrar(Number(b.dataset.borrar))));
+      lista.querySelectorAll('[data-suspender]').forEach((b) =>
+        b.addEventListener('click', () => suspender(Number(b.dataset.suspender), b.dataset.nombre)));
+      lista.querySelectorAll('[data-resolver]').forEach((b) =>
+        b.addEventListener('click', () => resolver(Number(b.dataset.resolver))));
+    }
+
+    // Borrar el mensaje da por atendidas sus denuncias: lo hace el servidor, y
+    // por eso aquí basta con recargar.
+    async function borrar(mensajeId) {
+      if (!await confirmar('El mensaje deja de verse para todos.',
+        { titulo: 'Eliminar el mensaje' })) return;
+      try {
+        await fetchJSON(`/api/chat/mensajes/${mensajeId}`, { method: 'DELETE' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function suspender(usuarioId, nombre) {
+      if (!await confirmar(
+        `«${nombre}» dejará de poder entrar y se cerrarán sus sesiones. `
+        + 'Sus incidencias y sus mensajes anteriores se quedan como están.',
+        { titulo: 'Suspender la cuenta', aceptar: 'Suspender' })) return;
+      try {
+        await fetchJSON(`/api/usuarios/${usuarioId}/suspender`, { method: 'POST' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    async function resolver(id) {
+      try {
+        await fetchJSON(`/api/chat/denuncias/${id}/resolver`, { method: 'POST' });
+        cargar();
+      } catch (e) {
+        alertaPagina(e.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

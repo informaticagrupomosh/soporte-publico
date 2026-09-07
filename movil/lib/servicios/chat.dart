@@ -37,6 +37,24 @@ class ServicioChat extends ChangeNotifier {
   /// Cuántos mensajes sin leer hay en total, para el aviso del menú.
   int get sinLeer => _canales.fold(0, (n, c) => n + c.sinLeer);
 
+  /// Denuncias de chat sin atender. Cero para quien no sea administrador: el
+  /// servidor no se las cuenta a nadie más.
+  ///
+  /// Vive aquí y no en su propia pantalla porque el número tiene que verse en
+  /// el menú sin haber entrado a mirar — igual que el de mensajes sin leer, y
+  /// por la misma razón: un aviso del que uno se entera solo al abrir la cola
+  /// llega tarde, y aquí el plazo se cuenta en horas.
+  int _denunciasPendientes = 0;
+  int get denunciasPendientes => _denunciasPendientes;
+
+  /// Lo pone al día la pantalla de moderación al terminar de atender algo, sin
+  /// esperar a la siguiente sincronización.
+  void anotarPendientes(int cuantas) {
+    if (_denunciasPendientes == cuantas) return;
+    _denunciasPendientes = cuantas;
+    notifyListeners();
+  }
+
   bool _conectado = false;
   bool get conectado => _conectado;
 
@@ -98,6 +116,9 @@ class ServicioChat extends ChangeNotifier {
     _reintentoSalida?.cancel();
     final id = _usuarioId;
     _canales = [];
+    // Al salir, el número de la cola se va con la sesión: quien entre después
+    // puede no ser administrador.
+    _denunciasPendientes = 0;
     _usuarioId = 0;
     _local = null;
     if (borrarCopia && id != 0) {
@@ -146,6 +167,8 @@ class ServicioChat extends ChangeNotifier {
       _canales = await local.canales();
       notifyListeners();
 
+      await _contarDenuncias();
+
       for (final c in _canales) {
         // Solo los canales que ya tienen conversación guardada, y solo si al
         // teléfono le falta algo: la lista dice cuál es el último mensaje de
@@ -158,6 +181,21 @@ class ServicioChat extends ChangeNotifier {
     } on ErrorApi {
       // Sin red no pasa nada: lo guardado sigue en pantalla y se reintenta al
       // reconectar o al volver a la app.
+    }
+  }
+
+  /// El resumen trae, para el administrador, cuántas denuncias hay sin
+  /// atender. Va aparte de los canales porque no es del chat de nadie: es la
+  /// cola de trabajo de quien modera.
+  Future<void> _contarDenuncias() async {
+    try {
+      final resumen = await api.get('/api/chat/resumen', null, true);
+      if (resumen is Map) {
+        anotarPendientes((resumen['denuncias_pendientes'] as num?)?.toInt() ?? 0);
+      }
+    } on ErrorApi {
+      // El número se queda como estaba: no es motivo para dar por fallida una
+      // sincronización que ha traído la conversación entera.
     }
   }
 
@@ -588,6 +626,21 @@ class ServicioChat extends ChangeNotifier {
     await _local?.guardarMensajes([mensaje]);
     _entrantes.add(mensaje);
     await _refrescarCanales();
+  }
+
+  /// Avisa al administrador de un mensaje ajeno.
+  ///
+  /// No borra ni esconde nada: eso lo decide quien recibe el aviso. Va por la
+  /// cola de salida, así que un aviso dado sin cobertura no se pierde —sale
+  /// cuando vuelve la línea—, y por eso tampoco se espera respuesta: lo que
+  /// hace falta es que llegue, no saber cuándo.
+  Future<void> denunciar(int mensajeId, String motivo) async {
+    await api.post(
+      '/api/chat/mensajes/$mensajeId/denuncia',
+      {'motivo': motivo},
+      true,
+      'El aviso sobre un mensaje',
+    );
   }
 
   @override
