@@ -785,8 +785,15 @@ git merge publico/main
 ```
 
 La primera vez, si las dos historias no se conocen, hace falta
-`--allow-unrelated-histories` y resolver a mano; a partir de ahí es la orden
-de arriba y ya.
+`--allow-unrelated-histories` y resolver a mano; a partir de ahí, una orden:
+
+```bash
+npm run actualizar
+```
+
+Trae lo del tronco, pasa las pruebas y para si algo choca, diciendo dónde. No
+sube nada: fusionar y publicar son dos decisiones, y la segunda se toma
+después de ver las pruebas en verde.
 
 Lo importante para quien trabaje en las dos: **un cambio que no nombre a
 ninguna organización se hace aquí**, no en la copia de abajo. Al revés

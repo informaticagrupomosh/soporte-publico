@@ -10,7 +10,8 @@
     "notificaciones": "node tools/probar-notificaciones.js",
     "entra": "node tools/probar-entra.js",
     "quien-recibe": "node tools/quien-recibe.js",
-    "demo": "node tools/demo.js"
+    "demo": "node tools/demo.js",
+    "actualizar": "node tools/actualizar.js"
   },
   "engines": {
     "node": ">=20"
