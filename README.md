@@ -760,6 +760,31 @@ AApanel apuntando a `server.js`, con `npm install` hecho y el puerto que se quie
 `PORT` (por defecto 3004). El programador de tareas va dentro del propio proceso, así que no hace
 falta un cron del sistema, y sus horas no dependen de cómo esté configurada la máquina.
 
+## Este repositorio es el tronco
+
+De aquí salen las instalaciones concretas. Una instalación es este código más
+una capa fina encima: su `data/organizacion.json` —el nombre, el correo, el
+local por defecto—, su política de privacidad rellenada, el identificador de
+su app y sus credenciales de Firebase. Nada de eso vive aquí.
+
+Quien mantenga una instalación así la engancha como remoto y se pone al día
+con una fusión normal:
+
+```bash
+git remote add publico https://github.com/informaticagrupomosh/soporte-publico.git
+git fetch publico
+git merge publico/main
+```
+
+La primera vez, si las dos historias no se conocen, hace falta
+`--allow-unrelated-histories` y resolver a mano; a partir de ahí es la orden
+de arriba y ya.
+
+Lo importante para quien trabaje en las dos: **un cambio que no nombre a
+ninguna organización se hace aquí**, no en la copia de abajo. Al revés
+funciona hasta que alguien toca el mismo archivo arriba, y entonces hay que
+resolver el mismo cambio dos veces.
+
 ## Pruebas
 
 ```bash
