@@ -13,6 +13,14 @@ salen de `data/organizacion.json`; sin ese archivo la aplicación funciona igual
 como «Soporte». Está explicado en «Instalación».
 
 ## Qué incluye
+<p align="center">
+<img width="200" height="auto" alt="Screenshot_20260908_101450" src="https://github.com/user-attachments/assets/cc42455a-ae06-4d54-a0ea-d0aceef452c3" />
+<img width="200" height="auto" alt="Screenshot_20260908_101522" src="https://github.com/user-attachments/assets/7ebdd82f-2cd1-4f16-ae06-3df763d37c7f" />
+<img width="200" height="auto" alt="Screenshot_20260908_101506" src="https://github.com/user-attachments/assets/88295732-1146-41ed-a2e6-e4364c7cbdcb" />
+<img width="200" height="auto" alt="Screenshot_20260908_102515" src="https://github.com/user-attachments/assets/d5a5cb50-2b23-4177-ab1c-fbf6c43bb276" />
+<img width="200" height="auto" alt="Screenshot_20260908_102540" src="https://github.com/user-attachments/assets/510b82dc-1945-4973-9055-f4056bfcadb4" />
+</p>
+
 
 - **Acceso** (`/login.html`): correo y contraseña, o la cuenta de **Office 365** de la
   organización si está configurada. Toda la app exige sesión iniciada; duran 30 días. El acceso está protegido contra intentos a ciegas: esperas
