@@ -16,6 +16,12 @@ const path = require('path');
 // una compartida se borrarían las filas unos a otros.
 const DATA_DIR = path.join(__dirname, '..', 'data', 'pruebas');
 process.env.INCIDENCIAS_DB = path.join(DATA_DIR, 'programador.db');
+
+// Y sin la configuración de la organización: si las pruebas leyeran el
+// `data/organizacion.json` de la instalación, cambiar el nombre de la empresa
+// —o el local por defecto— rompería la suite. Apuntando a un archivo que no
+// existe, corren siempre con los valores genéricos.
+process.env.ORGANIZACION_CONFIG = path.join(DATA_DIR, 'organizacion-que-no-existe.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 for (const sufijo of ['', '-wal', '-shm']) {
   fs.rmSync(`${process.env.INCIDENCIAS_DB}${sufijo}`, { force: true });

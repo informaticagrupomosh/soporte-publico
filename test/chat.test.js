@@ -24,6 +24,12 @@ fs.rmSync(path.join(DATA_DIR, 'chat'), { recursive: true, force: true });
 
 process.env.ENTRA_CONFIG = path.join(DATA_DIR, 'entra-que-no-existe.json');
 
+// Y sin la configuración de la organización: si las pruebas leyeran el
+// `data/organizacion.json` de la instalación, cambiar el nombre de la empresa
+// —o el local por defecto— rompería la suite. Apuntando a un archivo que no
+// existe, corren siempre con los valores genéricos.
+process.env.ORGANIZACION_CONFIG = path.join(DATA_DIR, 'organizacion-que-no-existe.json');
+
 const app = require('../server');
 
 let servidor;
