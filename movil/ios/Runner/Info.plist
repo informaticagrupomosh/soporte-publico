@@ -95,5 +95,7 @@
 	<false/>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Esta aplicación no utiliza tu ubicación. iOS exige este texto porque una biblioteca incluida en la app hace referencia a esa función del sistema, pero la aplicación nunca la solicita.</string>
 </dict>
 </plist>

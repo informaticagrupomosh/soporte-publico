@@ -128,6 +128,20 @@ function arreglarPlist() {
   plist = ponerEnPlist(plist, 'NSPhotoLibraryAddUsageDescription',
     '\t<string>Para guardar en tu carrete una foto o un vídeo del chat, cuando lo pidas.</string>\n');
 
+  // Este es distinto de los de arriba: la aplicación NO pide la ubicación
+  // nunca. Hace falta igualmente porque las bibliotecas de Firebase que trae
+  // el push enlazan símbolos de CoreLocation, y el validador de Apple mira lo
+  // que hay enlazado en el binario, no lo que se llama. Sin esta clave, cada
+  // subida a App Store Connect contesta con un ITMS-90683.
+  //
+  // El texto dice la verdad a propósito: un texto inventado que prometiera un
+  // uso que no existe sería peor que el aviso, porque eso sí es motivo de
+  // rechazo. El diálogo no llegará a salir nunca; nadie va a leerlo.
+  plist = ponerEnPlist(plist, 'NSLocationWhenInUseUsageDescription',
+    '\t<string>Esta aplicación no utiliza tu ubicación. iOS exige este texto porque una '
+    + 'biblioteca incluida en la app hace referencia a esa función del sistema, pero la '
+    + 'aplicación nunca la solicita.</string>\n');
+
   // Lo que deja que un aviso con «content-available» despierte la app por
   // detrás, igual que en Android.
   plist = ponerEnPlist(plist, 'UIBackgroundModes',

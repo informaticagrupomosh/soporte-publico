@@ -306,6 +306,30 @@ que ahora tiene la app. Cuatro llegan: la lista de incidencias, la ficha con su
 hilo, **el chat de un local con conversación dentro** y el informe. Salen de la
 instalación de demostración, así que no hay que tapar ningún dato de nadie.
 
+### El aviso de la ubicación, que sale sí o sí
+
+La primera subida contesta con un correo de Apple:
+
+> ITMS-90683: Missing purpose string in Info.plist — … should contain a
+> NSLocationWhenInUseUsageDescription key …
+
+**No es un rechazo**: la subida entra igual y el binario se puede enviar a
+revisión. Pero conviene arreglarlo, porque este aviso ha ido endureciéndose con
+los años y no cuesta nada.
+
+La app no pide la ubicación nunca. El validador de Apple no mira lo que se
+llama, sino lo que está **enlazado en el binario**, y las bibliotecas de
+Firebase que trae el push enlazan símbolos de CoreLocation. De ahí el aviso.
+
+`tools/ios.js` ya escribe la clave, con un texto que dice la verdad: que la
+aplicación no usa la ubicación. Poner ahí una excusa inventada —«para
+mostrarte lugares cercanos»— sería mucho peor que el aviso: un texto de
+permiso que no se corresponde con lo que hace la app sí es motivo de rechazo.
+El diálogo no va a salir nunca, porque nadie llama a esa función.
+
+Y **no la declares en las etiquetas de privacidad**. Esas van sobre lo que se
+recoge, y aquí no se recoge ninguna ubicación.
+
 ### Las tres que pueden costar una ronda
 
 La del contenido de los usuarios está más arriba y es la que más papeletas
