@@ -179,6 +179,32 @@ Otra que sale de vez en cuando es `Los avisos: tardan en prepararse`. Esa es
 inofensiva: la app deja de esperar y pinta, pero la preparación sigue por su
 cuenta y termina unos segundos después.
 
+Y una que asusta más de lo que es, porque llega con pinta de fallo de
+compilación cuando la app ya está compilada y firmada:
+
+```
+Failed to install the app on the device.
+Domain: com.apple.dt.CoreDeviceError   Code: 3002
+Remote side is already working on com.ejemplo.soporte for action of type: 1
+Domain: IXRemoteErrorDomain   Code: 5
+```
+
+Es el teléfono, no el Mac: le quedó abierto el trabajo de una instalación
+anterior —un «Run» cancelado a media copia, o el cable fuera antes de tiempo— y
+`installcoordinationd` no admite otro para el mismo identificador. Se suele ver
+además el icono en gris en la pantalla de inicio. Se quita desde el Mac, que
+de paso cancela el trabajo atascado:
+
+```bash
+xcrun devicectl device info apps --device <UDID> | grep -i soporte
+xcrun devicectl device uninstall app --device <UDID> com.ejemplo.soporte
+```
+
+Si `uninstall` contesta lo mismo, el demonio está colgado y solo lo suelta un
+reinicio del teléfono; aprovecha para cerrar Xcode mientras arranca. Si aun así
+vuelve, borra `~/Library/Developer/Xcode/DerivedData/Runner-*` y quita la app a
+mano en Xcode → Window → Devices and Simulators → Installed Apps.
+
 El resto se puede ir probando en el simulador, incluida la vuelta de Office
 365, que allí se simula sin pasar por Microsoft:
 
