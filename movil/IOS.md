@@ -168,6 +168,23 @@ La primera vez la app **no arranca sola**: iOS no ejecuta lo que firma un
 desarrollador sin permiso. En el teléfono, Ajustes → General → VPN y gestión de
 dispositivos → la cuenta → **Confiar**.
 
+Así instalada la app **muere al desenchufar el cable**, y no es un fallo: `flutter
+run` a secas compila en modo depuración, y eso deja el Dart VM Service hablando
+con el Mac. Para llevarse el teléfono y seguir usándola, en versión de salida:
+
+```bash
+flutter run --release -d <UDID>
+```
+
+Esa se queda funcionando sola, y con una cuenta de desarrollador de pago el
+perfil de aprovisionamiento aguanta un año, o sea que el icono sigue abriendo
+sin volver a ver el Mac. Se pierden la recarga en caliente y el registro de la
+terminal; lo que la app escriba se mira en Console.app filtrando por `Runner`.
+
+Los avisos siguen llegando: el entitlement dice `aps-environment: development`,
+así que van por el entorno de pruebas de APNs, y la clave `.p8` vale para los
+dos.
+
 Con el teléfono delante, lo que hay que mirar es que **no** salga en la
 terminal `Sin token de APNs`. En el simulador sale siempre, porque allí Apple no
 reparte tokens; en un iPhone de verdad significa que los avisos no se están
